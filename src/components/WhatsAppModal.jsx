@@ -1,10 +1,25 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, MessageSquare } from 'lucide-react'
+import { addLead } from '../data/carStorage'
 
 export default function WhatsAppModal({ car, isOpen, onClose }) {
   const message = `Hi Nova Motors, I'm interested in the ${car?.title} ${car?.variant} (${car?.priceFormatted}) listed on your app. Is it available for inspection?`
   const whatsappUrl = `https://api.whatsapp.com/send?phone=919488212044&text=${encodeURIComponent(message)}`
+
+  const handleOpenWhatsApp = () => {
+    try {
+      addLead({
+        type: 'WhatsApp Chat',
+        carTitle: car?.title || 'Used Car Inquiry',
+        customerName: 'WhatsApp Visitor',
+        phone: '+91 94882 12044',
+      })
+    } catch (e) {
+      console.error(e)
+    }
+    onClose()
+  }
 
   return (
     <AnimatePresence>
@@ -51,7 +66,7 @@ export default function WhatsAppModal({ car, isOpen, onClose }) {
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={onClose}
+                onClick={handleOpenWhatsApp}
                 className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md transition active:scale-[0.98]"
               >
                 Open in WhatsApp <ExternalLink className="w-3.5 h-3.5" />

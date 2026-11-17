@@ -61,7 +61,7 @@ export default function AdminLoginScreen({ onLoginSuccess, onBack }) {
             Administrator Portal
           </h2>
           <p className="text-xs text-slate-500 mt-1.5">
-            Sign in with authorized dealer credentials to access the Metis Admin Dashboard
+            Sign in with authorized dealer credentials to access Nova Motors Dealership Admin
           </p>
         </div>
 

@@ -78,6 +78,7 @@ const highValueHeroSlides = [
 ]
 
 export default function HomeScreen({
+  cars = allCarsData,
   onSelectCar,
   onBookTestDrive,
   onOpenWhatsApp,
@@ -265,7 +266,7 @@ export default function HomeScreen({
   }
 
   // Filter cars based on search, body type, brands, and comprehensive filter criteria
-  const filteredCars = allCarsData.filter((car) => {
+  const filteredCars = (cars || allCarsData).filter((car) => {
     // Body type (from Browse by Body Type section or FilterModal)
     const effectiveBody =
       selectedBodyType || (filters.bodyType && filters.bodyType !== 'all' ? filters.bodyType : null)

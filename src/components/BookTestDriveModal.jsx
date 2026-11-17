@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Calendar, Clock, MapPin, CheckCircle, ShieldCheck, Home, Building2, Lock } from 'lucide-react'
+import { addTestDrive } from '../data/carStorage'
 
 export default function BookTestDriveModal({ car, isOpen, onClose }) {
   const [date, setDate] = useState('Today, 4:00 PM')
@@ -8,15 +9,34 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [bookingRef, setBookingRef] = useState('')
 
   const handleBooking = (e) => {
     e.preventDefault()
+    try {
+      const created = addTestDrive({
+        carId: car?.id || 'featured',
+        carTitle: car?.title || 'Featured Car',
+        carPrice: car?.priceFormatted || '₹ 11,50,000',
+        carImage: car?.image || car?.gallery?.[0]?.image || '/mock_cars/honda_city_front.jpg',
+        customerName: name.trim() || 'Valued Customer',
+        phone: phone.trim() || '98421 54321',
+        slot: date,
+        locationType: locationType,
+        address: locationType === 'home' ? 'Customer Doorstep' : 'Nova Motors Hub, Tiruppur'
+      })
+      setBookingRef(created.ref)
+    } catch (err) {
+      console.error('Error saving booking', err)
+      setBookingRef(`NM-${Math.floor(100000 + Math.random() * 900000)}`)
+    }
+
     setSubmitted(true)
     setTimeout(() => {
       setTimeout(() => {
         setSubmitted(false)
         onClose()
-      }, 1800)
+      }, 2200)
     }, 500)
   }
 
@@ -63,8 +83,9 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                 <p className="text-xs text-slate-600 max-w-xs mx-auto">
                   Our Nova Motors concierge will arrive with the <span className="font-semibold text-slate-900">{car.title}</span> at your selected time.
                 </p>
-                <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 inline-block">
-                  Booking Ref: <span className="font-mono font-bold text-slate-900">NM-{Math.floor(100000 + Math.random() * 900000)}</span>
+                <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 inline-block border border-slate-200">
+                  Booking Ref: <span className="font-mono font-bold text-slate-900">{bookingRef || 'NM-982103'}</span>
+                  <span className="block text-[10px] text-emerald-600 font-semibold mt-0.5">● Synced with Dealership Admin</span>
                 </div>
               </motion.div>
             ) : (

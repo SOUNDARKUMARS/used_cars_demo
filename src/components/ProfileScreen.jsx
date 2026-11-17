@@ -122,7 +122,7 @@ export default function ProfileScreen({ wishlist, onSelectCar, onNavigate }) {
                 <ShieldCheck className="w-4 h-4 text-blue-600" />
                 Dealership Administration
               </span>
-              <p className="text-xs text-slate-400 mt-0.5">Metis admin dashboard for inventory, orders & telemetry</p>
+              <p className="text-xs text-slate-400 mt-0.5">Nova Motors admin console for cars inventory, test drives & leads</p>
             </div>
             <button
               onClick={() => onNavigate && onNavigate('login')}

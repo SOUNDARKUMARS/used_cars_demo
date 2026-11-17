@@ -20,6 +20,7 @@ import {
   Banknote,
   FileCheck,
 } from 'lucide-react'
+import { addSellRequest } from '../data/carStorage'
 
 export default function SellScreen({ onBack }) {
   const [regNumber, setRegNumber] = useState('')
@@ -27,6 +28,8 @@ export default function SellScreen({ onBack }) {
   const [year, setYear] = useState('2022')
   const [activeModal, setActiveModal] = useState(null) // null | 'year' | 'mileage'
   const [estimatedValue, setEstimatedValue] = useState(null)
+  const [scheduledSuccess, setScheduledSuccess] = useState(false)
+  const [scheduledRef, setScheduledRef] = useState('')
 
   // Photos State
   const [photos, setPhotos] = useState([])
@@ -427,20 +430,49 @@ export default function SellScreen({ onBack }) {
                 </p>
               )}
 
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                <button
-                  type="button"
-                  className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-black text-white text-xs font-bold transition shadow-xs active:scale-95"
-                >
-                  Schedule Free Doorstep Inspection
-                </button>
-                <a
-                  href="tel:+919488212044"
-                  className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold transition inline-flex items-center gap-1.5"
-                >
-                  Call Valuation Specialist
-                </a>
-              </div>
+              {scheduledSuccess ? (
+                <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center animate-in fade-in">
+                  <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto mb-2">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-sm">Doorstep Inspection Scheduled!</h4>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Your valuation request has been logged and sent to Nova Motors Dealership Admin.
+                  </p>
+                  <p className="text-xs font-mono font-bold text-slate-900 mt-1">
+                    Request ID: {scheduledRef || 'SR-4102'}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const created = addSellRequest({
+                        regNumber: regNumber ? regNumber.toUpperCase() : 'TN-39-EXPRESS',
+                        year: year,
+                        km: km,
+                        estimatedRange: estimatedValue?.range || '₹ 8,40,000 - ₹ 9,20,000',
+                        photoCount: photos.length,
+                        customerName: 'Valuation Customer',
+                        phone: '98488 21204',
+                        city: 'Tiruppur',
+                      })
+                      setScheduledRef(created.id)
+                      setScheduledSuccess(true)
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-black text-white text-xs font-bold transition shadow-xs active:scale-95"
+                  >
+                    Schedule Free Doorstep Inspection
+                  </button>
+                  <a
+                    href="tel:+919488212044"
+                    className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold transition inline-flex items-center gap-1.5"
+                  >
+                    Call Valuation Specialist
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </div>

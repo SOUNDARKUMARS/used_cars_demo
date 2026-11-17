@@ -17,8 +17,22 @@ import DealerModal from './components/DealerModal'
 import InspectionModal from './components/InspectionModal'
 import FilterModal from './components/FilterModal'
 import { featuredCarData } from './data/cars'
+import { getStoredCars } from './data/carStorage'
 
 export default function App() {
+  const [cars, setCars] = useState(getStoredCars)
+
+  // Listen for real-time changes to cars from Admin or other storage events
+  useEffect(() => {
+    const handleCarsUpdated = (e) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setCars(e.detail)
+      }
+    }
+    window.addEventListener('nova_cars_updated', handleCarsUpdated)
+    return () => window.removeEventListener('nova_cars_updated', handleCarsUpdated)
+  }, [])
+
   // Navigation: 'home' | 'detail' | 'cars' | 'finance' | 'sell' | 'profile' | 'login' | 'admin'
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
     const params = new URLSearchParams(window.location.search)
@@ -173,6 +187,7 @@ export default function App() {
       <AdminDashboard
         onLogout={handleAdminLogout}
         onReturnToStore={() => handleNavigate('home')}
+        cars={cars}
       />
     )
   }
@@ -200,6 +215,7 @@ export default function App() {
 
         {currentScreen === 'home' && (
           <HomeScreen
+            cars={cars}
             onSelectCar={handleSelectCar}
             onBookTestDrive={(car) => {
               setSelectedCar(car)
@@ -243,6 +259,7 @@ export default function App() {
 
         {currentScreen === 'cars' && (
           <CarsCatalogueScreen
+            cars={cars}
             onSelectCar={handleSelectCar}
             onBookTestDrive={(car) => {
               setSelectedCar(car)

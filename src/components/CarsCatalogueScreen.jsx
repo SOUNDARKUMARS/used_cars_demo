@@ -16,6 +16,7 @@ import {
 import { allCarsData } from '../data/cars'
 
 export default function CarsCatalogueScreen({
+  cars = allCarsData,
   onSelectCar,
   onBookTestDrive,
   onToggleWishlist,
@@ -36,7 +37,7 @@ export default function CarsCatalogueScreen({
     )
   }
 
-  const filtered = allCarsData.filter((c) => {
+  const filtered = cars.filter((c) => {
     if (
       selectedMakes.length > 0 &&
       !selectedMakes.some((m) => m.toLowerCase() === c.make.toLowerCase())
