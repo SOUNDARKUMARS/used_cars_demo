@@ -144,6 +144,11 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
+      const existingLink = document.getElementById('metis-theme-css')
+      if (existingLink) {
+        existingLink.remove()
+      }
+      document.documentElement.removeAttribute('data-bs-theme')
     }
   }, [])
 
@@ -448,28 +453,28 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
             HEADER / NAVBAR
         ============================================================== */}
         <header className="admin-header">
-          <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom px-3">
-            <div className="container-fluid px-0">
+          <nav className="navbar navbar-expand-lg bg-body border-bottom px-3">
+            <div className="container-fluid px-0 d-flex align-items-center flex-nowrap">
 
               {/* Brand Logo & Name */}
               <button
                 type="button"
                 onClick={() => setActiveTab('dashboard')}
-                className="navbar-brand d-flex align-items-center border-0 bg-transparent text-decoration-none cursor-pointer"
+                className="navbar-brand d-flex align-items-center border-0 bg-transparent text-decoration-none me-2"
                 style={{ cursor: 'pointer' }}
               >
                 <div className="bg-primary text-white p-1 rounded-2 me-2 d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
-                  <i className="bi bi-shield-check" style={{ fontSize: '1.2rem' }}></i>
+                  <i className="bi bi-shield-check" style={{ fontSize: '1.15rem' }}></i>
                 </div>
                 <div className="text-start">
-                  <div className="h5 mb-0 fw-bold text-primary-emphasis lh-1">NOVA MOTORS</div>
-                  <small className="text-muted" style={{ fontSize: '10px', letterSpacing: '0.5px' }}>DEALERSHIP ADMIN</small>
+                  <div className="h6 mb-0 fw-bold text-primary-emphasis lh-1">NOVA MOTORS</div>
+                  <small className="text-muted d-block" style={{ fontSize: '10px', letterSpacing: '0.5px' }}>DEALERSHIP ADMIN</small>
                 </div>
               </button>
 
               {/* Hamburger Sidebar Toggle */}
               <button
-                className="hamburger-menu btn btn-link p-1 text-dark"
+                className="hamburger-menu btn btn-link p-1 text-body"
                 type="button"
                 onClick={() => {
                   if (window.innerWidth < 992) {
@@ -485,15 +490,15 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
               </button>
 
               {/* Two-Way Live Sync Indicator */}
-              <div className="d-none d-md-flex align-items-center ms-3">
-                <span className="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1.5 px-2.5 py-1.5 rounded-pill">
+              <div className="d-none d-xl-flex align-items-center ms-3 flex-shrink-0">
+                <span className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill">
                   <span className="spinner-grow spinner-grow-sm" style={{ width: '8px', height: '8px' }} role="status"></span>
-                  <span style={{ fontSize: '11px', fontWeight: 600 }}>Live Sync Active &bull; Frontend Store Connected</span>
+                  <span style={{ fontSize: '11px', fontWeight: 600 }}>Live Sync Active &bull; Store Connected</span>
                 </span>
               </div>
 
               {/* Search Bar with Ctrl+K shortcut */}
-              <div className="search-container flex-grow-1 mx-4 d-none d-lg-block position-relative">
+              <div className="search-container flex-grow-1 mx-3 d-none d-lg-block position-relative">
                 <div className="position-relative">
                   <input
                     ref={searchInputRef}
@@ -739,7 +744,7 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
         >
           <div className="sidebar-content d-flex flex-column h-100">
             {/* Sidebar Brand / Quick Info */}
-            <div className="p-3 border-bottom">
+            <div className="p-3 border-bottom sidebar-hide-collapsed">
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-primary px-2 py-1 rounded">Nova 2.0</span>
                 <span className="small text-muted fw-semibold">Tamil Nadu Hub</span>
@@ -747,7 +752,7 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
             </div>
 
             {/* Nav Menu */}
-            <nav className="sidebar-nav flex-grow-1 p-2">
+            <nav className="sidebar-nav flex-grow-1 p-2 overflow-y-auto">
               <ul className="nav nav-pills flex-column gap-1">
                 {/* 1. Dashboard Overview */}
                 <li className="nav-item">
@@ -757,7 +762,7 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                       setActiveTab('dashboard')
                       setMobileSidebarOpen(false)
                     }}
-                    className={`nav-link w-100 text-start border-0 bg-transparent ${activeTab === 'dashboard' ? 'active' : ''}`}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center ${activeTab === 'dashboard' ? 'active' : ''}`}
                   >
                     <i className="bi bi-speedometer2 me-2"></i>
                     <span>Overview</span>
@@ -772,13 +777,13 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                       setActiveTab('inventory')
                       setMobileSidebarOpen(false)
                     }}
-                    className={`nav-link w-100 text-start border-0 bg-transparent d-flex align-items-center justify-content-between ${activeTab === 'inventory' ? 'active' : ''}`}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center justify-content-between ${activeTab === 'inventory' ? 'active' : ''}`}
                   >
-                    <div>
+                    <div className="d-flex align-items-center">
                       <i className="bi bi-car-front me-2"></i>
                       <span>Cars Inventory</span>
                     </div>
-                    <span className="badge bg-secondary-subtle text-secondary rounded-pill small">
+                    <span className={`badge rounded-pill ${activeTab === 'inventory' ? 'bg-white text-primary' : 'bg-secondary-subtle text-secondary'}`}>
                       {kpis.totalCount}
                     </span>
                   </button>
@@ -792,18 +797,18 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                       setActiveTab('bookings')
                       setMobileSidebarOpen(false)
                     }}
-                    className={`nav-link w-100 text-start border-0 bg-transparent d-flex align-items-center justify-content-between ${activeTab === 'bookings' ? 'active' : ''}`}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center justify-content-between ${activeTab === 'bookings' ? 'active' : ''}`}
                   >
-                    <div>
+                    <div className="d-flex align-items-center">
                       <i className="bi bi-calendar-check me-2"></i>
                       <span>Test Drives</span>
                     </div>
                     {kpis.pendingTestDrives > 0 ? (
-                      <span className="badge bg-danger rounded-pill small">
+                      <span className="badge bg-danger rounded-pill">
                         {kpis.pendingTestDrives}
                       </span>
                     ) : (
-                      <span className="badge bg-light text-muted border rounded-pill small">
+                      <span className={`badge rounded-pill ${activeTab === 'bookings' ? 'bg-white text-primary' : 'bg-secondary-subtle text-secondary'}`}>
                         {kpis.testDrivesTotal}
                       </span>
                     )}
@@ -818,18 +823,18 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                       setActiveTab('sell-requests')
                       setMobileSidebarOpen(false)
                     }}
-                    className={`nav-link w-100 text-start border-0 bg-transparent d-flex align-items-center justify-content-between ${activeTab === 'sell-requests' ? 'active' : ''}`}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center justify-content-between ${activeTab === 'sell-requests' ? 'active' : ''}`}
                   >
-                    <div>
+                    <div className="d-flex align-items-center">
                       <i className="bi bi-tag me-2"></i>
                       <span>Sell Requests</span>
                     </div>
                     {kpis.pendingSellRequests > 0 ? (
-                      <span className="badge bg-warning text-dark rounded-pill small">
+                      <span className="badge bg-warning text-dark rounded-pill">
                         {kpis.pendingSellRequests}
                       </span>
                     ) : (
-                      <span className="badge bg-light text-muted border rounded-pill small">
+                      <span className={`badge rounded-pill ${activeTab === 'sell-requests' ? 'bg-white text-primary' : 'bg-secondary-subtle text-secondary'}`}>
                         {kpis.sellRequestsTotal}
                       </span>
                     )}
@@ -844,13 +849,13 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                       setActiveTab('leads')
                       setMobileSidebarOpen(false)
                     }}
-                    className={`nav-link w-100 text-start border-0 bg-transparent d-flex align-items-center justify-content-between ${activeTab === 'leads' ? 'active' : ''}`}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center justify-content-between ${activeTab === 'leads' ? 'active' : ''}`}
                   >
-                    <div>
+                    <div className="d-flex align-items-center">
                       <i className="bi bi-chat-dots me-2"></i>
                       <span>Customer Leads</span>
                     </div>
-                    <span className="badge bg-light text-muted border rounded-pill small">
+                    <span className={`badge rounded-pill ${activeTab === 'leads' ? 'bg-white text-primary' : 'bg-secondary-subtle text-secondary'}`}>
                       {kpis.leadsTotal}
                     </span>
                   </button>
@@ -864,7 +869,7 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                       setActiveTab('analytics')
                       setMobileSidebarOpen(false)
                     }}
-                    className={`nav-link w-100 text-start border-0 bg-transparent ${activeTab === 'analytics' ? 'active' : ''}`}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center ${activeTab === 'analytics' ? 'active' : ''}`}
                   >
                     <i className="bi bi-graph-up-arrow me-2"></i>
                     <span>Analytics</span>
@@ -879,7 +884,7 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                       setActiveTab('settings')
                       setMobileSidebarOpen(false)
                     }}
-                    className={`nav-link w-100 text-start border-0 bg-transparent ${activeTab === 'settings' ? 'active' : ''}`}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center ${activeTab === 'settings' ? 'active' : ''}`}
                   >
                     <i className="bi bi-gear me-2"></i>
                     <span>Settings</span>
@@ -889,11 +894,12 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
             </nav>
 
             {/* Bottom Actions */}
-            <div className="p-3 border-top mt-auto bg-light">
+            <div className="p-3 border-top mt-auto bg-body-tertiary">
               <button
                 type="button"
                 onClick={onReturnToStore}
-                className="btn btn-outline-dark btn-sm w-100 mb-2 d-flex align-items-center justify-content-center gap-1.5"
+                className="btn btn-outline-secondary btn-sm w-100 mb-2 d-flex align-items-center justify-content-center gap-2 sidebar-bottom-btn"
+                title="Customer Storefront"
               >
                 <i className="bi bi-arrow-left"></i>
                 <span>Customer Storefront</span>
@@ -901,7 +907,8 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
               <button
                 type="button"
                 onClick={onLogout}
-                className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-1.5"
+                className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 sidebar-bottom-btn"
+                title="Sign Out"
               >
                 <i className="bi bi-box-arrow-right"></i>
                 <span>Sign Out</span>
@@ -2060,7 +2067,7 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
         </main>
 
         {/* Footer */}
-        <footer className="admin-footer border-top bg-white py-3 px-4">
+        <footer className="admin-footer border-top bg-body py-3 px-4">
           <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 small text-muted">
             <div>
               &copy; 2026 <strong>Nova Motors</strong> &bull; Certified Pre-Owned Automotive Platform
@@ -2554,52 +2561,31 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
       )}
 
       <style>{`
-        .admin-sidebar {
-          width: 250px;
-          background: #fff;
-          border-right: 1px solid #e2e8f0;
-          transition: all 0.2s ease-in-out;
+        .admin-app {
+          background-color: var(--bs-tertiary-bg, #f8fafc);
+          color: var(--bs-body-color, #0f172a);
         }
-        .admin-wrapper {
-          display: flex;
-          min-height: 100vh;
-          flex-direction: column;
+        .admin-header .hamburger-menu {
+          position: static !important;
+          top: auto !important;
+          left: auto !important;
+          transform: none !important;
         }
-        .admin-wrapper.sidebar-collapsed .admin-sidebar {
-          margin-left: -250px;
+        .admin-wrapper.sidebar-collapsed .admin-sidebar .sidebar-hide-collapsed {
+          display: none !important;
         }
-        @media (min-width: 992px) {
-          .admin-wrapper {
-            flex-direction: row;
-          }
-          .admin-sidebar {
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            flex-shrink: 0;
-          }
-          .admin-main {
-            flex: 1;
-            min-width: 0;
-            background-color: var(--bs-body-bg, #f8fafc);
-          }
+        .admin-wrapper.sidebar-collapsed .admin-sidebar .sidebar-bottom-btn span {
+          display: none;
         }
-        @media (max-width: 991.98px) {
-          .admin-sidebar {
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: -260px;
-            z-index: 1050;
-            width: 260px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.15);
-          }
-          .admin-sidebar.show {
-            left: 0;
-          }
+        .admin-sidebar .nav-link:not(.active) {
+          background-color: transparent;
+          color: var(--bs-body-color);
+        }
+        .admin-sidebar .nav-link:not(.active):hover {
+          background-color: var(--bs-secondary-bg, #f1f5f9);
         }
         .hover-bg-light:hover {
-          background-color: var(--bs-light, #f8f9fa);
+          background-color: var(--bs-tertiary-bg, #f8f9fa);
         }
       `}</style>
 
