@@ -77,18 +77,18 @@ export default function InspectionModal({ car, isOpen, onClose }) {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: '100%', opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col z-10"
+            className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col z-10"
           >
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition active:scale-90"
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition active:scale-90"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-center gap-2 mb-1">
               <ShieldCheck className="w-5 h-5 text-slate-900" />
-              <h3 className="text-base font-bold text-slate-900">Nova 200+ Point Inspection Report</h3>
+              <h3 className="text-base font-bold text-slate-900">Harsha 200+ Point Inspection Report</h3>
             </div>
             <p className="text-xs text-slate-500 mb-4">
               Inspected on 28 Oct 2026 by Certified Master Technician #TN-409
@@ -102,7 +102,7 @@ export default function InspectionModal({ car, isOpen, onClose }) {
                   onClick={() => setActiveTab(c.id)}
                   className={`px-3 py-1.5 rounded-xl font-medium shrink-0 transition active:scale-95 ${
                     activeTab === c.id
-                      ? 'bg-slate-950 text-white font-semibold shadow-xs'
+                      ? 'bg-brand text-white font-semibold shadow-xs'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -131,7 +131,7 @@ export default function InspectionModal({ car, isOpen, onClose }) {
 
             <button
               onClick={onClose}
-              className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-black text-white font-semibold text-xs transition active:scale-95 shadow-sm"
+              className="w-full py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold text-xs transition active:scale-95 shadow-sm"
             >
               Close Inspection Summary
             </button>

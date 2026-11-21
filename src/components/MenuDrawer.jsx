@@ -12,6 +12,8 @@ import {
   Banknote,
   User,
 } from 'lucide-react'
+import BrandLogo from './BrandLogo'
+import { BRAND_MAPS_URL } from '../config/brand'
 
 export default function MenuDrawer({ isOpen, onClose, onNavigate, onOpenCall }) {
   if (!isOpen) return null
@@ -22,10 +24,7 @@ export default function MenuDrawer({ isOpen, onClose, onNavigate, onOpenCall }) 
         <div>
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div className="flex items-center">
-              <span className="font-black text-lg tracking-tight text-slate-900">NOVA</span>
-              <span className="font-light text-lg tracking-widest text-slate-500 ml-1.5">MOTORS</span>
-            </div>
+            <BrandLogo imgClassName="h-8 w-auto max-w-[170px] object-contain" />
             <button
               onClick={onClose}
               className="p-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -89,10 +88,10 @@ export default function MenuDrawer({ isOpen, onClose, onNavigate, onOpenCall }) 
           </div>
 
           {/* Assurance */}
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 space-y-1.5 mt-2">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-1.5 mt-2">
             <p className="font-bold text-slate-900 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-slate-900" />
-              The Nova Assurance
+              The Harsha Assurance
             </p>
             <p>• 200-Point Inspection</p>
             <p>• 1-Year Comprehensive Warranty</p>
@@ -107,13 +106,18 @@ export default function MenuDrawer({ isOpen, onClose, onNavigate, onOpenCall }) 
               onClose()
               onOpenCall()
             }}
-            className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-black text-white font-semibold flex items-center justify-center gap-2 shadow-xs"
+            className="w-full py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold flex items-center justify-center gap-2 shadow-xs"
           >
             <Phone className="w-3.5 h-3.5" /> Call Showroom
           </button>
-          <p className="text-[10px] text-slate-400 text-center mt-2">
-            Tiruppur Hub • Kangeyam Road
-          </p>
+          <a
+            href={BRAND_MAPS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-xs text-slate-500 text-center mt-2 hover:text-slate-900 transition"
+          >
+            Harsha cars, Tiruppur
+          </a>
         </div>
       </div>
     </div>

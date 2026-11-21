@@ -1,160 +1,196 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ShieldCheck,
-  CheckCircle2,
   ArrowRight,
   ChevronDown,
   X,
   Check,
   Calendar,
   Gauge,
-  Sparkles,
-  UploadCloud,
-  Camera,
   Trash2,
   Plus,
-  Eye,
-  Award,
   Clock,
   Banknote,
   FileCheck,
 } from 'lucide-react'
-import { addSellRequest } from '../data/carStorage'
+import { addSellRequest, deleteSellRequest, buildValuationUpdateMessage } from '../data/carStorage'
+import { addSellRequestToSupabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+
+const SELL_PHOTO_SLOTS = [
+  { id: 'front', label: 'Front' },
+  { id: 'back', label: 'Back' },
+  { id: 'left', label: 'Left side' },
+  { id: 'right', label: 'Right side' },
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'rear-seat', label: 'Rear seat' },
+]
+
+function registrationYears() {
+  const newest = new Date().getFullYear()
+  const years = []
+  for (let year = newest; year >= 1990; year -= 1) years.push(String(year))
+  return years
+}
+
+function compressImageFile(file, meta) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Could not read the photo'))
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const maxEdge = 1280
+        const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(img.width * scale))
+        canvas.height = Math.max(1, Math.round(img.height * scale))
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve({
+          url: canvas.toDataURL('image/jpeg', 0.72),
+          name: meta?.name || file.name,
+          tag: meta?.tag || '',
+        })
+      }
+      img.onerror = () => reject(new Error('Could not read the photo'))
+      img.src = reader.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+async function photoToStoredRecord(photo) {
+  if (photo.file) return compressImageFile(photo.file, photo)
+  if (!photo.url || photo.url.startsWith('blob:')) return null
+  const response = await fetch(photo.url)
+  if (!response.ok) return null
+  const blob = await response.blob()
+  const file = new File([blob], photo.name || 'photo.jpg', { type: blob.type || 'image/jpeg' })
+  return compressImageFile(file, photo)
+}
 
 export default function SellScreen({ onBack }) {
+  const { user, requireAuth } = useAuth()
   const [regNumber, setRegNumber] = useState('')
-  const [km, setKm] = useState('30000')
+  const [km, setKm] = useState('')
+  const [phone, setPhone] = useState('')
   const [year, setYear] = useState('2022')
-  const [activeModal, setActiveModal] = useState(null) // null | 'year' | 'mileage'
-  const [estimatedValue, setEstimatedValue] = useState(null)
-  const [scheduledSuccess, setScheduledSuccess] = useState(false)
-  const [scheduledRef, setScheduledRef] = useState('')
+  const [activeModal, setActiveModal] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [submitNotice, setSubmitNotice] = useState(null)
 
   // Photos State
   const [photos, setPhotos] = useState([])
-  const [isDragging, setIsDragging] = useState(false)
   const [previewPhoto, setPreviewPhoto] = useState(null)
   const fileInputRef = useRef(null)
+  const pendingSlotRef = useRef(null)
 
-  const yearOptions = ['2024', '2023', '2022', '2021', '2020', '2019', '2018 & Older']
+  const yearOptions = registrationYears()
 
-  const mileageOptions = [
-    { label: 'Under 20,000 km', value: '15000', subtitle: 'Like New / Minimal Usage' },
-    { label: '20,000 - 40,000 km', value: '30000', subtitle: 'Standard City / Highway' },
-    { label: '40,000 - 70,000 km', value: '50000', subtitle: 'Moderate Daily Commute' },
-    { label: 'Above 70,000 km', value: '80000', subtitle: 'High Mileage / Well Driven' },
-  ]
+  const openSlotPicker = (slotId) => {
+    pendingSlotRef.current = slotId
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+      fileInputRef.current.click()
+    }
+  }
 
   const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files || [])
-    addFiles(files)
+    const file = Array.from(e.target.files || []).find((item) => item.type.startsWith('image/'))
+    const slotId = pendingSlotRef.current
     e.target.value = ''
+    if (!file || !slotId) return
+    const slot = SELL_PHOTO_SLOTS.find((item) => item.id === slotId)
+    if (!slot) return
+    const next = {
+      id: slot.id,
+      slot: slot.id,
+      url: URL.createObjectURL(file),
+      file,
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      tag: slot.label,
+    }
+    setPhotos((prev) => [...prev.filter((photo) => photo.slot !== slot.id), next])
   }
 
-  const handleDrop = (e) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const files = Array.from(e.dataTransfer.files || [])
-    addFiles(files)
-  }
-
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = () => {
-    setIsDragging(false)
-  }
-
-  const addFiles = (files) => {
-    const imageFiles = files.filter((f) => f.type.startsWith('image/'))
-    if (imageFiles.length === 0) return
-
-    const defaultTags = [
-      'Front Angle',
-      'Rear Angle',
-      'Interior Dashboard',
-      'Odometer Reading',
-      'Side Profile',
-      'Engine Bay',
-    ]
-
-    const newItems = imageFiles.map((file, idx) => {
-      const tagIndex = (photos.length + idx) % defaultTags.length
-      return {
-        id: `${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
-        url: URL.createObjectURL(file),
-        name: file.name,
-        size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
-        tag: defaultTags[tagIndex],
-      }
-    })
-    setPhotos((prev) => [...prev, ...newItems])
-  }
-
-  const handleRemovePhoto = (id, e) => {
+  const handleRemovePhoto = (slotId, e) => {
     e.stopPropagation()
-    setPhotos((prev) => prev.filter((p) => p.id !== id))
+    setPhotos((prev) => prev.filter((photo) => photo.slot !== slotId))
   }
 
-  const handleLoadSamplePhotos = () => {
-    setPhotos([
-      {
-        id: 'sample-1',
-        url: '/nova/gallery-1.jpg',
-        name: 'front_exterior_angle.jpg',
-        size: '1.4 MB',
-        tag: 'Front Angle',
-      },
-      {
-        id: 'sample-2',
-        url: '/nova/gallery-2.jpg',
-        name: 'rear_tail_exterior.jpg',
-        size: '1.2 MB',
-        tag: 'Rear Angle',
-      },
-      {
-        id: 'sample-3',
-        url: '/nova/gallery-3.jpg',
-        name: 'cockpit_dashboard.jpg',
-        size: '1.8 MB',
-        tag: 'Interior Dashboard',
-      },
-      {
-        id: 'sample-4',
-        url: '/nova/gallery-4.jpg',
-        name: 'odometer_console.jpg',
-        size: '1.1 MB',
-        tag: 'Odometer Reading',
-      },
-    ])
-  }
-
-  const handleClearPhotos = () => {
-    setPhotos([])
-  }
-
-  const handleCalculate = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
-    const baseMin = 840000
-    const baseMax = 920000
-    const photoBonus = photos.length > 0 ? 25000 : 0
-    const finalMin = baseMin + photoBonus
-    const finalMax = baseMax + photoBonus
-    const formatted = `₹ ${finalMin.toLocaleString('en-IN')} - ₹ ${finalMax.toLocaleString('en-IN')}`
+    setFormError('')
 
-    setEstimatedValue({
-      range: formatted,
-      hasPhotos: photos.length > 0,
-      photoCount: photos.length,
-      bonus: photoBonus ? '₹ 25,000' : null,
-    })
+    const kmDigits = String(km).replace(/[^\d]/g, '')
+    const kmNumber = Number(kmDigits)
+    if (!kmDigits || !Number.isFinite(kmNumber) || kmNumber <= 0) {
+      setFormError('Enter the exact odometer reading in kilometres.')
+      return
+    }
+
+    const phoneDigits = phone.replace(/[^\d]/g, '')
+    if (phoneDigits.length < 10) {
+      setFormError('Enter a phone number so the team can reach you with the valuation.')
+      return
+    }
+
+    const missingSlots = SELL_PHOTO_SLOTS.filter((slot) => !photos.some((photo) => photo.slot === slot.id))
+    if (missingSlots.length > 0) {
+      setFormError(`Add one photo for each angle: ${missingSlots.map((slot) => slot.label).join(', ')}.`)
+      return
+    }
+
+    requireAuth(
+      async (authUser) => {
+        setIsSubmitting(true)
+        setFormError('')
+        try {
+          const storedPhotos = []
+          for (const photo of photos) {
+            const stored = await photoToStoredRecord(photo)
+            if (stored?.url) storedPhotos.push({ ...stored, slot: photo.slot, tag: photo.tag })
+          }
+          if (storedPhotos.length < SELL_PHOTO_SLOTS.length) {
+            throw new Error('One of the photos could not be saved. Add it again and resubmit.')
+          }
+
+          const quoteMessage = buildValuationUpdateMessage(new Date())
+          const created = addSellRequest({
+            regNumber: regNumber.toUpperCase(),
+            year,
+            km: kmNumber,
+            quoteMessage,
+            photos: storedPhotos,
+            customerName: authUser?.name || user?.name || 'Car owner',
+            email: authUser?.email || user?.email || '',
+            phone: phoneDigits,
+            city: 'Tiruppur',
+          })
+
+          try {
+            await addSellRequestToSupabase(created)
+          } catch (err) {
+            deleteSellRequest(created.id)
+            throw err
+          }
+
+          setSubmitNotice({ id: created.id, message: quoteMessage })
+        } catch (err) {
+          setFormError(err?.message || 'Could not submit the request. Please try again.')
+        } finally {
+          setIsSubmitting(false)
+        }
+      },
+      {
+        title: 'Sign in to request a valuation',
+        description: 'Sign in with your Google account so we can send the valuation update to you.',
+      }
+    )
   }
-
-  const selectedMileageLabel =
-    mileageOptions.find((opt) => opt.value === km)?.label || '20,000 - 40,000 km'
 
   return (
     <div className="w-full bg-[#f8fafc] text-slate-900 min-h-screen pb-28 md:pb-16">
@@ -170,9 +206,9 @@ export default function SellScreen({ onBack }) {
         </div>
 
         {/* Valuation Hero Banner */}
-        <div className="p-6 sm:p-10 rounded-3xl bg-slate-950 text-white shadow-2xl relative overflow-hidden border border-slate-800">
-          <p className="text-[11px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold mb-1">
-            Nova Instant Auto Valuation Engine
+        <div className="p-6 sm:p-10 rounded-2xl bg-slate-950 text-white shadow-2xl relative overflow-hidden border border-slate-800">
+          <p className="text-xs uppercase tracking-wider text-slate-400 font-bold mb-1">
+            Harsha Instant Auto Valuation Engine
           </p>
           <h2 className="text-2xl sm:text-4xl font-extrabold leading-snug">
             Get the Highest Guaranteed Price for Your Car
@@ -183,10 +219,10 @@ export default function SellScreen({ onBack }) {
         </div>
 
         {/* Valuation Form */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs">
-          <h3 className="text-base font-bold text-slate-900 mb-4">Calculate Instant Car Value</h3>
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-xs">
+          <h3 className="text-base font-bold text-slate-900 mb-4">Request a valuation</h3>
 
-          <form onSubmit={handleCalculate} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Registration Number */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -202,7 +238,22 @@ export default function SellScreen({ onBack }) {
               />
             </div>
 
-            {/* Year & Mileage Selectors */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Phone number
+              </label>
+              <input
+                type="tel"
+                required
+                inputMode="tel"
+                placeholder="10-digit mobile number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full text-xs sm:text-sm px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-slate-900 bg-slate-50/50"
+              />
+            </div>
+
+            {/* Year & exact mileage */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Registration Year */}
               <div>
@@ -222,273 +273,126 @@ export default function SellScreen({ onBack }) {
                 </button>
               </div>
 
-              {/* Odometer Mileage */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Odometer Mileage
+                  Exact odometer reading (km)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setActiveModal('mileage')}
-                  className="w-full text-xs sm:text-sm px-4 py-3.5 rounded-2xl border border-slate-200 focus:outline-none focus:border-slate-900 bg-slate-50/50 hover:bg-slate-100/60 transition flex items-center justify-between text-slate-900 font-medium text-left shadow-2xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <Gauge className="w-4 h-4 text-slate-400" />
-                    <span className="font-semibold text-slate-900">{selectedMileageLabel}</span>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                </button>
+                <div className="flex items-center gap-2 w-full text-xs sm:text-sm px-4 py-3 rounded-2xl border border-slate-200 focus-within:border-slate-900 bg-slate-50/50">
+                  <Gauge className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    required
+                    inputMode="numeric"
+                    placeholder="e.g. 45230"
+                    value={km}
+                    onChange={(e) => setKm(e.target.value.replace(/[^\d]/g, ''))}
+                    className="w-full bg-transparent font-semibold text-slate-900 focus:outline-none"
+                  />
+                  <span className="text-xs font-semibold text-slate-400">km</span>
+                </div>
               </div>
             </div>
 
-            {/* Photos Uploading Section */}
             <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-900">
-                    Upload Car Photos <span className="text-slate-400 font-normal">(Optional)</span>
-                  </label>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Adding photos unlocks an instant visual appraisal bonus of up to ₹ 25,000.
-                  </p>
-                </div>
-
-                {photos.length === 0 ? (
-                  <button
-                    type="button"
-                    onClick={handleLoadSamplePhotos}
-                    className="text-[11px] font-semibold text-slate-900 hover:text-black bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1 rounded-xl transition"
-                  >
-                    + Load Demo Photos
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-[11px] font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-md">
-                      {photos.length} photo{photos.length > 1 ? 's' : ''} added
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleClearPhotos}
-                      className="text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-900">
+                  Photos <span className="text-slate-500 font-normal">({photos.length} of {SELL_PHOTO_SLOTS.length})</span>
+                </label>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Add one photo for each angle. Tap a box to choose it.
+                </p>
               </div>
-
-              {/* Upload Dropzone */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 select-none ${
-                  isDragging
-                    ? 'border-slate-950 bg-slate-100 scale-[1.01]'
-                    : 'border-slate-200 bg-slate-50/60 hover:bg-slate-50 hover:border-slate-400'
-                }`}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  multiple
-                  accept="image/*"
-                  className="hidden"
-                />
-
-                <div className="flex flex-col items-center justify-center gap-2.5">
-                  <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center justify-center text-slate-700">
-                    <UploadCloud className="w-6 h-6 stroke-[1.8] text-slate-700" />
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold text-slate-900">
-                      Click to upload photos or drag & drop
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Front, Rear, Interior, Odometer • Supports PNG, JPG, WEBP (Max 10MB)
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Suggested Photo Angles Chips */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <span className="text-[10.5px] font-semibold text-slate-400">Suggested:</span>
-                {['Front Angle', 'Rear Angle', 'Interior Dashboard', 'Odometer Reading'].map(
-                  (angle) => (
-                    <button
-                      key={angle}
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-[11px] font-medium px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition flex items-center gap-1 shadow-2xs active:scale-95"
-                    >
-                      <Plus className="w-3 h-3 text-slate-400" />
-                      <span>{angle}</span>
-                    </button>
-                  )
-                )}
-              </div>
-
-              {/* Uploaded Photos Grid Preview */}
-              {photos.length > 0 && (
-                <div className="pt-2">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {photos.map((photo, idx) => (
-                      <div
-                        key={photo.id}
-                        className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 shadow-xs"
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/*"
+                className="hidden"
+              />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {SELL_PHOTO_SLOTS.map((slot) => {
+                  const photo = photos.find((item) => item.slot === slot.id)
+                  if (!photo) {
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => openSlotPicker(slot.id)}
+                        className="aspect-[4/3] rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-400 flex flex-col items-center justify-center gap-1 text-slate-600 transition active:scale-[0.98]"
                       >
-                        <img
-                          src={photo.url}
-                          alt={photo.name}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-
-                        {/* Top Badge: Cover or Tag */}
-                        <div className="absolute top-2 left-2 z-10">
-                          {idx === 0 ? (
-                            <span className="px-2 py-0.5 rounded-md text-[9.5px] font-bold bg-slate-950/80 text-white backdrop-blur-md shadow-xs">
-                              Cover Photo
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-md text-[9.5px] font-medium bg-black/60 text-white backdrop-blur-md">
-                              {photo.tag || `Photo #${idx + 1}`}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Hover Overlay with Action Buttons */}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewPhoto(photo)}
-                            className="w-8 h-8 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-md transition active:scale-90"
-                            aria-label="View photo"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleRemovePhoto(photo.id, e)}
-                            className="w-8 h-8 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition active:scale-90"
-                            aria-label="Delete photo"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <Plus className="w-5 h-5 text-slate-400" />
+                        <span className="text-xs font-semibold text-slate-900">{slot.label}</span>
+                        <span className="text-[11px] text-slate-400">Required</span>
+                      </button>
+                    )
+                  }
+                  return (
+                    <div key={slot.id} className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewPhoto(photo)}
+                        className="absolute inset-0"
+                        aria-label={`View ${slot.label}`}
+                      >
+                        <img src={photo.url} alt={slot.label} className="w-full h-full object-cover" />
+                      </button>
+                      <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-950/80 text-white">
+                          {slot.label}
+                        </span>
+                        <Check className="w-4 h-4 text-white" />
                       </div>
-                    ))}
-
-                    {/* Add More Photo Tile */}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="aspect-[4/3] rounded-2xl border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-100 flex flex-col items-center justify-center gap-1 transition text-slate-500 hover:text-slate-800"
-                    >
-                      <Plus className="w-5 h-5 text-slate-400" />
-                      <span className="text-[11px] font-semibold">Add More</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+                      <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openSlotPicker(slot.id)}
+                          className="h-7 px-2 rounded-lg bg-white text-[11px] font-semibold text-slate-900 shadow-sm"
+                        >
+                          Replace
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemovePhoto(slot.id, e)}
+                          className="w-7 h-7 rounded-lg bg-white text-slate-900 flex items-center justify-center shadow-sm"
+                          aria-label={`Remove ${slot.label}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Calculate Button */}
+            {formError && (
+              <p className="text-xs font-semibold text-red-600">{formError}</p>
+            )}
+
             <button
               type="submit"
-              className="w-full py-3.5 sm:py-4 rounded-2xl bg-slate-950 hover:bg-black text-white font-bold text-xs sm:text-sm shadow-md transition active:scale-[0.99] flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className="w-full py-3.5 sm:py-4 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-xs sm:text-sm shadow-md transition active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              <span>Get Instant Price Quote</span>
+              <span>{isSubmitting ? 'Submitting request...' : 'Request Instant Valuation'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Instant Valuation Result Card */}
-          {estimatedValue && (
-            <div className="mt-6 p-5 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-sm text-center animate-in fade-in">
-              <span className="text-[10px] uppercase font-bold text-slate-900 tracking-wider">
-                Instant Valuation Quote
-              </span>
-              <p className="text-2xl sm:text-3xl font-extrabold font-mono text-slate-950 mt-1">
-                {estimatedValue.range}
-              </p>
-
-              {estimatedValue.hasPhotos ? (
-                <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-slate-900 text-white text-xs font-semibold">
-                  <Sparkles className="w-3.5 h-3.5 text-white" />
-                  <span>
-                    {estimatedValue.photoCount} Photos Appraised • Visual Valuation Bonus Applied (
-                    {estimatedValue.bonus})
-                  </span>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 mt-1.5">
-                  Quote locked for 7 days. Free doorstep evaluation available at your address in
-                  Tiruppur / Coimbatore.
-                </p>
-              )}
-
-              {scheduledSuccess ? (
-                <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center animate-in fade-in">
-                  <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto mb-2">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <h4 className="font-bold text-slate-900 text-sm">Doorstep Inspection Scheduled!</h4>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Your valuation request has been logged and sent to Nova Motors Dealership Admin.
-                  </p>
-                  <p className="text-xs font-mono font-bold text-slate-900 mt-1">
-                    Request ID: {scheduledRef || 'SR-4102'}
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const created = addSellRequest({
-                        regNumber: regNumber ? regNumber.toUpperCase() : 'TN-39-EXPRESS',
-                        year: year,
-                        km: km,
-                        estimatedRange: estimatedValue?.range || '₹ 8,40,000 - ₹ 9,20,000',
-                        photoCount: photos.length,
-                        customerName: 'Valuation Customer',
-                        phone: '98488 21204',
-                        city: 'Tiruppur',
-                      })
-                      setScheduledRef(created.id)
-                      setScheduledSuccess(true)
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-black text-white text-xs font-bold transition shadow-xs active:scale-95"
-                  >
-                    Schedule Free Doorstep Inspection
-                  </button>
-                  <a
-                    href="tel:+919488212044"
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold transition inline-flex items-center gap-1.5"
-                  >
-                    Call Valuation Specialist
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* 3 Steps to Sell */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs">
-          <h3 className="text-base font-bold text-slate-900 mb-6">How Nova Motors Car Selling Works</h3>
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-xs">
+          <h3 className="text-base font-bold text-slate-900 mb-6">How Harsha cars Car Selling Works</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="flex sm:flex-col items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200 text-slate-900 flex items-center justify-center font-bold text-sm shrink-0">
                 1
               </div>
               <div>
-                <h4 className="font-bold text-slate-900 text-sm">Instant Price Quote</h4>
+                <h4 className="font-bold text-slate-900 text-sm">Send your car details</h4>
                 <p className="text-xs text-slate-500 mt-1">
-                  Share registration number and vehicle photos to get a transparent data-backed offer.
+                  Share the registration number, exact kilometres, and photos. The team reviews the request and sends the valuation.
                 </p>
               </div>
             </div>
@@ -525,7 +429,7 @@ export default function SellScreen({ onBack }) {
             <Banknote className="w-6 h-6 text-slate-900 shrink-0" />
             <div>
               <p className="text-xs font-bold text-slate-900">Instant Spot Payout</p>
-              <p className="text-[11px] text-slate-500">Immediate IMPS/RTGS bank transfer</p>
+              <p className="text-xs text-slate-500">Immediate IMPS/RTGS bank transfer</p>
             </div>
           </div>
 
@@ -533,7 +437,7 @@ export default function SellScreen({ onBack }) {
             <FileCheck className="w-6 h-6 text-slate-900 shrink-0" />
             <div>
               <p className="text-xs font-bold text-slate-900">Free RC Transfer</p>
-              <p className="text-[11px] text-slate-500">100% legal paperwork handled by us</p>
+              <p className="text-xs text-slate-500">100% legal paperwork handled by us</p>
             </div>
           </div>
 
@@ -541,7 +445,7 @@ export default function SellScreen({ onBack }) {
             <Clock className="w-6 h-6 text-slate-900 shrink-0" />
             <div>
               <p className="text-xs font-bold text-slate-900">24-Hour Completion</p>
-              <p className="text-[11px] text-slate-500">Fastest vehicle sale in Tamil Nadu</p>
+              <p className="text-xs text-slate-500">Fastest vehicle sale in Tamil Nadu</p>
             </div>
           </div>
         </div>
@@ -565,17 +469,13 @@ export default function SellScreen({ onBack }) {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: '100%', opacity: 0, scale: 0.98 }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 sm:pb-6 shadow-2xl relative max-h-[85vh] overflow-y-auto z-10 border-t sm:border border-slate-100"
+              className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 pb-8 sm:pb-6 shadow-2xl relative max-h-[85vh] overflow-y-auto z-10 border-t sm:border border-slate-100"
             >
               <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-4">
                 <div className="flex items-center gap-2">
-                  {activeModal === 'year' ? (
-                    <Calendar className="w-5 h-5 text-slate-900" />
-                  ) : (
-                    <Gauge className="w-5 h-5 text-slate-900" />
-                  )}
+                  <Calendar className="w-5 h-5 text-slate-900" />
                   <h3 className="text-base font-bold text-slate-900">
-                    {activeModal === 'year' ? 'Select Registration Year' : 'Select Odometer Mileage'}
+                    Select Registration Year
                   </h3>
                 </div>
                 <button
@@ -587,9 +487,7 @@ export default function SellScreen({ onBack }) {
                 </button>
               </div>
 
-              {/* Year Options Grid */}
-              {activeModal === 'year' && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {yearOptions.map((yr) => {
                     const isSelected = year === yr
                     return (
@@ -602,7 +500,7 @@ export default function SellScreen({ onBack }) {
                         }}
                         className={`py-3 px-4 rounded-2xl border text-xs sm:text-sm font-bold flex items-center justify-between transition active:scale-95 ${
                           isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-1 ring-slate-900'
+                            ? 'bg-brand text-white border-brand shadow-md ring-1 ring-brand'
                             : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
@@ -612,49 +510,38 @@ export default function SellScreen({ onBack }) {
                     )
                   })}
                 </div>
-              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
-              {/* Mileage Options List */}
-              {activeModal === 'mileage' && (
-                <div className="space-y-2">
-                  {mileageOptions.map((opt) => {
-                    const isSelected = km === opt.value
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setKm(opt.value)
-                          setActiveModal(null)
-                        }}
-                        className={`w-full py-3.5 px-4 rounded-2xl border text-left flex items-center justify-between transition active:scale-[0.99] ${
-                          isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-1 ring-slate-900'
-                            : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div>
-                          <p
-                            className={`text-xs sm:text-sm font-bold ${
-                              isSelected ? 'text-white' : 'text-slate-900'
-                            }`}
-                          >
-                            {opt.label}
-                          </p>
-                          <p
-                            className={`text-[11px] mt-0.5 ${
-                              isSelected ? 'text-slate-300' : 'text-slate-500'
-                            }`}
-                          >
-                            {opt.subtitle}
-                          </p>
-                        </div>
-                        {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+      <AnimatePresence>
+        {submitNotice && (
+          <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              className="relative w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl z-10 border border-slate-200"
+            >
+              <h3 className="text-base font-bold text-slate-900">Request submitted</h3>
+              <p className="text-sm text-slate-600 mt-2">{submitNotice.message}</p>
+              <p className="text-xs font-mono font-bold text-slate-900 mt-3">
+                Request ID: {submitNotice.id}
+              </p>
+              <button
+                type="button"
+                onClick={() => setSubmitNotice(null)}
+                className="mt-5 w-full py-3 rounded-xl bg-brand hover:bg-brand-hover text-white text-sm font-semibold transition"
+              >
+                Done
+              </button>
             </motion.div>
           </div>
         )}
@@ -675,12 +562,12 @@ export default function SellScreen({ onBack }) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative max-w-2xl w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl z-10 border border-slate-800"
+              className="relative max-w-2xl w-full bg-slate-900 rounded-2xl overflow-hidden shadow-2xl z-10 border border-slate-800"
             >
               <div className="p-3 bg-slate-950 flex items-center justify-between border-b border-slate-800 text-white">
                 <div>
                   <p className="text-xs font-bold">{previewPhoto.name}</p>
-                  <p className="text-[10px] text-slate-400">{previewPhoto.tag} • {previewPhoto.size}</p>
+                  <p className="text-xs text-slate-400">{previewPhoto.tag} • {previewPhoto.size}</p>
                 </div>
                 <button
                   type="button"

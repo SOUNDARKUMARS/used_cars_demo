@@ -23,7 +23,7 @@ export default function FinanceScreen({ onBack, onBookTestDrive }) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 space-y-6">
         <div>
           <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Nova Auto Finance & EMI Calculator
+            Harsha Auto Finance & EMI Calculator
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Instant online paperless pre-approvals with customized tenures and zero prepayment penalty
@@ -31,9 +31,9 @@ export default function FinanceScreen({ onBack, onBookTestDrive }) {
         </div>
 
         {/* EMI Result Card */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-slate-950 text-white shadow-2xl relative overflow-hidden border border-slate-800">
+        <div className="p-6 sm:p-8 rounded-2xl bg-slate-950 text-white shadow-2xl relative overflow-hidden border border-slate-800">
           <div className="relative z-10">
-            <span className="text-[11px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold">
+            <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">
               Estimated Monthly Installment (EMI)
             </span>
             <div className="text-3xl sm:text-5xl font-extrabold tracking-tight mt-1 mb-3 font-mono">
@@ -43,25 +43,25 @@ export default function FinanceScreen({ onBack, onBookTestDrive }) {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-800 text-xs sm:text-sm text-slate-300">
               <div>
-                <p className="text-[10px] sm:text-xs text-slate-400">Net Loan Amount</p>
+                <p className="text-xs text-slate-400">Net Loan Amount</p>
                 <p className="font-bold text-white mt-0.5 font-mono">
                   ₹ {principal.toLocaleString('en-IN')}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] sm:text-xs text-slate-400">Total Interest</p>
+                <p className="text-xs text-slate-400">Total Interest</p>
                 <p className="font-bold text-white mt-0.5 font-mono">
                   ₹ {totalInterest.toLocaleString('en-IN')}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] sm:text-xs text-slate-400">Total Payable</p>
+                <p className="text-xs text-slate-400">Total Payable</p>
                 <p className="font-bold text-slate-200 mt-0.5 font-mono">
                   ₹ {totalPayable.toLocaleString('en-IN')}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] sm:text-xs text-slate-400">Tenure</p>
+                <p className="text-xs text-slate-400">Tenure</p>
                 <p className="font-bold text-white mt-0.5 font-mono">{months} Months</p>
               </div>
             </div>
@@ -69,7 +69,7 @@ export default function FinanceScreen({ onBack, onBookTestDrive }) {
         </div>
 
         {/* Interactive Sliders */}
-        <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-200/80 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-5 sm:p-8 border border-slate-200/80 shadow-xs space-y-6">
           {/* Car Price */}
           <div>
             <div className="flex justify-between text-xs sm:text-sm font-semibold mb-2">
@@ -121,7 +121,7 @@ export default function FinanceScreen({ onBack, onBookTestDrive }) {
                   onClick={() => setTenureYears(yr)}
                   className={`py-2 rounded-xl text-xs sm:text-sm font-semibold border transition active:scale-95 ${
                     tenureYears === yr
-                      ? 'bg-slate-950 text-white border-slate-950 shadow-xs'
+                      ? 'bg-brand text-white border-brand shadow-xs'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -150,7 +150,7 @@ export default function FinanceScreen({ onBack, onBookTestDrive }) {
         </div>
 
         {/* Banking Partners */}
-        <div className="bg-white rounded-3xl p-5 sm:p-8 border border-slate-200/80 shadow-xs">
+        <div className="bg-white rounded-2xl p-5 sm:p-8 border border-slate-200/80 shadow-xs">
           <h3 className="text-sm font-bold text-slate-900 mb-1">Financing Partners</h3>
           <p className="text-xs text-slate-500 mb-4">
             Instant paperless approvals with 100% funding on on-road price through verified banking partners.

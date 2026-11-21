@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, MapPin, Star, Phone, Clock, ShieldCheck, Navigation } from 'lucide-react'
+import { BRAND_MAPS_URL } from '../config/brand'
 
 export default function DealerModal({ dealer, isOpen, onClose }) {
   return (
@@ -21,11 +22,11 @@ export default function DealerModal({ dealer, isOpen, onClose }) {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: '100%', opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto z-10"
+            className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto z-10"
           >
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition active:scale-90"
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition active:scale-90"
             >
               <X className="w-4 h-4" />
             </button>
@@ -72,7 +73,7 @@ export default function DealerModal({ dealer, isOpen, onClose }) {
               <div className="p-3 bg-slate-50 rounded-xl flex items-center gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-slate-900 shrink-0" />
                 <div>
-                  <p className="font-semibold text-slate-900">Nova Assurance</p>
+                  <p className="font-semibold text-slate-900">Harsha Assurance</p>
                   <p className="text-slate-600">All cars inspected, certified with 1-Year Warranty & 7-Day Money Back</p>
                 </div>
               </div>
@@ -80,7 +81,7 @@ export default function DealerModal({ dealer, isOpen, onClose }) {
 
             <div className="grid grid-cols-2 gap-2">
               <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(dealer.address)}`}
+                href={BRAND_MAPS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="py-3 rounded-xl border border-slate-300 text-slate-900 font-semibold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-50 transition active:scale-95"
@@ -89,7 +90,7 @@ export default function DealerModal({ dealer, isOpen, onClose }) {
               </a>
               <a
                 href={`tel:${dealer.phone}`}
-                className="py-3 rounded-xl bg-slate-950 hover:bg-black text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-95"
+                className="py-3 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-95"
               >
                 <Phone className="w-3.5 h-3.5" /> Call Dealership
               </a>

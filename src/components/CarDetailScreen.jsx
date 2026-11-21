@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft,
@@ -22,8 +22,6 @@ import {
   Wrench,
   FileText,
   FileCheck,
-  MapPin,
-  Star,
   Phone,
   ArrowRight,
   ChevronDown,
@@ -32,40 +30,236 @@ import {
   Clock,
   Sparkles,
   Maximize2,
+  ArrowLeft,
+  Car,
+  LayoutDashboard,
+  Layers,
+  X,
 } from 'lucide-react'
-import { featuredCarData } from '../data/cars'
+import { renderFeatureIcon, getFeatureById } from '../data/featuresBank'
+import { formatINR, formatTenureLabel, resolveCarEmi } from '../data/carStorage'
+import { trackCarView } from '../lib/analytics'
+import BrandLogo from './BrandLogo'
+import { BRAND_NAME } from '../config/brand'
+
+export const PHOTO_CATEGORY_CONFIG = {
+  interior: {
+    id: 'interior',
+    title: 'Interior & Dashboard',
+    shortTitle: 'Interior',
+    icon: LayoutDashboard,
+  },
+  cabin: {
+    id: 'cabin',
+    title: 'Seats & Cabin',
+    shortTitle: 'Cabin & Seats',
+    icon: Armchair,
+  },
+  mechanical: {
+    id: 'mechanical',
+    title: 'Engine & Boot Space',
+    shortTitle: 'Engine & Boot',
+    icon: Gauge,
+  },
+  exterior: {
+    id: 'exterior',
+    title: 'Exterior Views',
+    shortTitle: 'Exterior',
+    icon: Car,
+  },
+}
+
+export const CATEGORY_ORDER = ['interior', 'cabin', 'mechanical', 'exterior']
+
+function CarEmiOffer({ car }) {
+  const offer = resolveCarEmi(car)
+
+  if (!offer.available) {
+    return (
+      <div
+        className="rounded-2xl border border-slate-200 p-4"
+        style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #e5e7eb 100%)' }}
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Finance</p>
+        <p className="text-sm font-bold text-slate-950 mt-1">EMI not available</p>
+        <p className="text-xs text-slate-600 mt-1">This car is offered for full payment only.</p>
+        {offer.note ? <p className="text-xs text-slate-800 mt-2 leading-relaxed">{offer.note}</p> : null}
+      </div>
+    )
+  }
+
+  if (offer.legacy) {
+    return (
+      <div
+        className="rounded-2xl border border-slate-200 p-4"
+        style={{ background: 'linear-gradient(180deg, #ffffff 0%, #e5e7eb 100%)' }}
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Monthly EMI</p>
+        <p className="text-sm font-bold text-slate-950 font-mono mt-1">{offer.label}</p>
+        {offer.note ? <p className="text-xs text-slate-700 mt-2 leading-relaxed">{offer.note}</p> : null}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="rounded-2xl border border-slate-200 p-4"
+      style={{ background: 'linear-gradient(180deg, #ffffff 0%, #e5e7eb 100%)' }}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Monthly EMI</p>
+      <p className="text-lg font-bold text-slate-950 font-mono mt-0.5">
+        {formatINR(offer.monthly)}
+        <span className="text-xs font-semibold text-slate-500"> / month</span>
+      </p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 mt-3 text-xs">
+        <div>
+          <p className="text-slate-500">Upfront payment</p>
+          <p className="font-semibold text-slate-950 font-mono">{formatINR(offer.upfront)}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Loan amount</p>
+          <p className="font-semibold text-slate-950 font-mono">{formatINR(offer.loan)}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Interest</p>
+          <p className="font-semibold text-slate-950">{Number(offer.rate)}% per year</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Tenure</p>
+          <p className="font-semibold text-slate-950">{formatTenureLabel(offer.tenureMonths)}</p>
+        </div>
+      </div>
+      <p className="text-xs text-slate-600 mt-3">
+        Total you pay: <span className="font-semibold text-slate-950 font-mono">{formatINR(offer.totalPayable)}</span>
+        <span className="text-slate-500"> (upfront plus all installments)</span>
+      </p>
+      {offer.note ? <p className="text-xs text-slate-800 mt-2 leading-relaxed">{offer.note}</p> : null}
+    </div>
+  )
+}
 
 export default function CarDetailScreen({
-  car = featuredCarData,
+  car = null,
   onBack,
   onBookTestDrive,
   onOpenWhatsApp,
   onOpenCall,
   onOpenDealer,
   onOpenInspection,
-  onOpenEmi,
-  wishlist,
+  wishlist = [],
   onToggleWishlist,
 }) {
+  const [readMore, setReadMore] = useState(false)
+  const [copiedShare, setCopiedShare] = useState(false)
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false)
+
+  // Normalize gallery: handle missing categories, ensure proper labels and icons
+  const normalizedGallery = useMemo(() => {
+    const rawList = Array.isArray(car?.gallery) && car.gallery.length > 0
+      ? car.gallery
+      : (car?.image ? [{ id: 'hero-cover', label: 'Exterior Front', category: 'exterior', image: car.image, thumb: car.image }] : [])
+
+    return rawList.map((item, idx) => {
+      let category = item.category
+      if (!category) {
+        const l = (item.label || '').toLowerCase()
+        if (l.includes('interior') || l.includes('cockpit') || l.includes('dashboard') || l.includes('steering') || l.includes('infotainment')) {
+          category = 'interior'
+        } else if (l.includes('seat') || l.includes('cabin') || l.includes('sunroof') || l.includes('legroom')) {
+          category = 'cabin'
+        } else if (l.includes('engine') || l.includes('boot') || l.includes('trunk') || l.includes('tyre') || l.includes('wheel') || l.includes('mechanical')) {
+          category = 'mechanical'
+        } else {
+          category = 'exterior'
+        }
+      }
+      const config = PHOTO_CATEGORY_CONFIG[category] || PHOTO_CATEGORY_CONFIG.exterior
+
+      return {
+        ...item,
+        id: item.id || `photo-${idx}-${Date.now()}`,
+        category,
+        categoryTitle: config.title,
+        categoryShortTitle: config.shortTitle,
+        categoryIcon: config.icon,
+        label: item.label || `${config.shortTitle} View ${idx + 1}`,
+        image: item.image || item.thumb || '',
+        thumb: item.thumb || item.image || '',
+      }
+    })
+  }, [car?.gallery, car?.image])
+
+  // Category counts computed from vehicle's photos
+  const categoryCounts = useMemo(() => {
+    const counts = { exterior: 0, interior: 0, cabin: 0, mechanical: 0 }
+    normalizedGallery.forEach((item) => {
+      if (counts[item.category] !== undefined) {
+        counts[item.category]++
+      } else {
+        counts.exterior++
+      }
+    })
+    return counts
+  }, [normalizedGallery])
+
+  // Order gallery photos: starts with interior -> cabin -> mechanical -> exterior
+  const orderedGallery = useMemo(() => {
+    const copy = [...normalizedGallery]
+    copy.sort((a, b) => {
+      const orderA = CATEGORY_ORDER.indexOf(a.category)
+      const orderB = CATEGORY_ORDER.indexOf(b.category)
+      const rankA = orderA === -1 ? 99 : orderA
+      const rankB = orderB === -1 ? 99 : orderB
+      return rankA - rankB
+    })
+    return copy
+  }, [normalizedGallery])
+
+  // Available Category Tabs: Only display actual categories that contain photos (NO "All Photos")
+  const availableCategories = useMemo(() => {
+    const tabs = []
+    CATEGORY_ORDER.forEach((catId) => {
+      const count = categoryCounts[catId] || 0
+      if (count > 0 && PHOTO_CATEGORY_CONFIG[catId]) {
+        tabs.push({
+          ...PHOTO_CATEGORY_CONFIG[catId],
+          count,
+        })
+      }
+    })
+    return tabs
+  }, [categoryCounts])
+
   const [activePhotoIndex, setActivePhotoIndex] = useState(() => {
     const p = new URLSearchParams(window.location.search).get('photo')
     return p !== null ? Number(p) : 0
   })
-  const [readMore, setReadMore] = useState(false)
-  const [copiedShare, setCopiedShare] = useState(false)
+
+  const currentPhoto = orderedGallery[activePhotoIndex] || orderedGallery[0] || null
+  const activeCategory = currentPhoto?.category || availableCategories[0]?.id || 'interior'
 
   // Pan gesture & horizontal swipe gallery state
   const galleryScrollRef = useRef(null)
+  const thumbnailsScrollRef = useRef(null)
+  const categoryTabsRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollStart, setScrollStart] = useState(0)
   const [hasMoved, setHasMoved] = useState(false)
 
+  const galleryLength = orderedGallery.length
+
   useEffect(() => {
+    if (!car) return
+    trackCarView(car, { screen: 'detail' })
+  }, [car?.id])
+
+  useEffect(() => {
+    if (!car) return
     const p = new URLSearchParams(window.location.search).get('photo')
     if (p !== null) {
       const idx = Number(p)
-      if (idx >= 0 && idx < car.gallery.length) {
+      if (idx >= 0 && idx < galleryLength) {
         setActivePhotoIndex(idx)
         const timer = setTimeout(() => {
           if (galleryScrollRef.current) {
@@ -76,14 +270,86 @@ export default function CarDetailScreen({
         return () => clearTimeout(timer)
       }
     }
-  }, [car.gallery.length])
+  }, [car, galleryLength])
+
+  // Keep active thumbnail centered in view
+  useEffect(() => {
+    if (!thumbnailsScrollRef.current) return
+    const activeThumb = thumbnailsScrollRef.current.children[activePhotoIndex]
+    if (activeThumb && typeof activeThumb.scrollIntoView === 'function') {
+      activeThumb.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      })
+    }
+  }, [activePhotoIndex])
+
+  // Keep active category tab visible as user scrolls through gallery
+  useEffect(() => {
+    if (!categoryTabsRef.current) return
+    const activeTabEl = categoryTabsRef.current.querySelector('[data-active="true"]')
+    if (activeTabEl && typeof activeTabEl.scrollIntoView === 'function') {
+      activeTabEl.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'nearest',
+        block: 'nearest',
+      })
+    }
+  }, [activeCategory])
+
+  // Fullscreen modal keyboard navigation
+  useEffect(() => {
+    if (!isFullscreenOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowLeft') {
+        setActivePhotoIndex((prev) => Math.max(0, prev - 1))
+      } else if (e.key === 'ArrowRight') {
+        setActivePhotoIndex((prev) => Math.min(orderedGallery.length - 1, prev + 1))
+      } else if (e.key === 'Escape') {
+        setIsFullscreenOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullscreenOpen, orderedGallery.length])
+
+  if (!car) {
+    return (
+      <div className="w-full min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl p-8 border border-slate-200/80 shadow-xs text-center space-y-4">
+          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto text-slate-400">
+            <Car className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Vehicle Not Found</h2>
+          <p className="text-xs text-slate-500">
+            The requested vehicle listing is not available or has been updated in our inventory.
+          </p>
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand text-white rounded-xl text-xs font-semibold hover:bg-brand-hover transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Inventory</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const handleCategoryTabClick = (categoryId) => {
+    const targetIdx = orderedGallery.findIndex((p) => p.category === categoryId)
+    if (targetIdx !== -1) {
+      scrollToPhoto(targetIdx)
+    }
+  }
 
   const handleScroll = () => {
     if (!galleryScrollRef.current) return
     const { scrollLeft, clientWidth } = galleryScrollRef.current
     if (clientWidth > 0) {
       const idx = Math.round(scrollLeft / clientWidth)
-      if (idx >= 0 && idx < car.gallery.length && idx !== activePhotoIndex) {
+      if (idx >= 0 && idx < orderedGallery.length && idx !== activePhotoIndex) {
         setActivePhotoIndex(idx)
       }
     }
@@ -115,7 +381,7 @@ export default function CarDetailScreen({
       const { scrollLeft, clientWidth } = galleryScrollRef.current
       if (clientWidth > 0) {
         const targetIndex = Math.round(scrollLeft / clientWidth)
-        const clampedIndex = Math.max(0, Math.min(car.gallery.length - 1, targetIndex))
+        const clampedIndex = Math.max(0, Math.min(orderedGallery.length - 1, targetIndex))
         galleryScrollRef.current.scrollTo({
           left: clampedIndex * clientWidth,
           behavior: 'smooth',
@@ -132,11 +398,12 @@ export default function CarDetailScreen({
   }
 
   const scrollToPhoto = (idx) => {
-    setActivePhotoIndex(idx)
+    const clampedIndex = Math.max(0, Math.min(orderedGallery.length - 1, idx))
+    setActivePhotoIndex(clampedIndex)
     if (galleryScrollRef.current) {
       const width = galleryScrollRef.current.clientWidth
       galleryScrollRef.current.scrollTo({
-        left: idx * width,
+        left: clampedIndex * width,
         behavior: 'smooth',
       })
     }
@@ -150,15 +417,15 @@ export default function CarDetailScreen({
 
   const handleNextPhoto = (e) => {
     e.stopPropagation()
-    const nextIdx = Math.min(car.gallery.length - 1, activePhotoIndex + 1)
+    const nextIdx = Math.min(orderedGallery.length - 1, activePhotoIndex + 1)
     scrollToPhoto(nextIdx)
   }
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `${car.title} ${car.variant} - Nova Motors`,
-        text: `Check out this verified ${car.title} on Nova Motors for ${car.priceFormatted}`,
+        title: `${car.title} ${car.variant} - ${BRAND_NAME}`,
+        text: `Check out this verified ${car.title} on ${BRAND_NAME} for ${car.priceFormatted}`,
         url: window.location.href,
       }).catch(() => {})
     } else {
@@ -226,30 +493,25 @@ export default function CarDetailScreen({
   const currentGalleryItem = car.gallery[activePhotoIndex] || car.gallery[0]
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-[#f8fafc] text-slate-900 min-h-screen pb-28 md:pb-16 selection:bg-slate-900 selection:text-white">
+    <div className="w-full max-w-full overflow-x-hidden bg-[#f8fafc] text-slate-900 min-h-screen pb-36 md:pb-16 selection:bg-brand selection:text-white">
       {/* Mobile Top Navigation Bar (Shown on Mobile to match Image 2 exactly) */}
-      <header className="md:hidden px-4 py-2 flex items-center justify-between border-b border-slate-100 bg-white sticky top-0 z-30 shadow-2xs">
+      <header className="md:hidden sticky top-0 z-30 flex min-h-[3.75rem] items-center gap-2 border-b border-slate-100 bg-white px-3 py-2 shadow-2xs">
         {/* Back Button */}
         <button
           onClick={onBack}
-          className="p-1 -ml-1 text-slate-900 hover:text-slate-600 rounded-full transition"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-900 transition hover:bg-slate-50 hover:text-slate-600 active:scale-95"
           aria-label="Back to home"
         >
           <ChevronLeft className="w-6 h-6 stroke-[2.2]" />
         </button>
 
         {/* Center Logo */}
-        <div className="flex items-center">
-          <span className="font-black text-lg tracking-tight text-slate-900 font-sans">
-            NOVA
-          </span>
-          <span className="font-light text-lg tracking-widest text-slate-500 font-sans ml-1.5">
-            MOTORS
-          </span>
+        <div className="flex min-w-0 flex-1 items-center justify-center px-1">
+          <BrandLogo imgClassName="h-10 w-auto max-w-[min(240px,calc(100vw-6.5rem))] object-contain" />
         </div>
 
         {/* Right Icons: Heart & Share */}
-        <div className="flex items-center gap-3">
+        <div className="flex w-[4.75rem] shrink-0 items-center justify-end gap-2">
           <button
             onClick={() => onToggleWishlist(car.id)}
             className="p-1 text-slate-900 hover:text-red-500 transition"
@@ -270,7 +532,7 @@ export default function CarDetailScreen({
           >
             <Share2 className="w-5 h-5 stroke-[2]" />
             {copiedShare && (
-              <span className="absolute -bottom-7 right-0 bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded shadow">
+              <span className="absolute -bottom-7 right-0 bg-slate-900 text-white text-xs px-2 py-0.5 rounded-lg shadow">
                 Copied!
               </span>
             )}
@@ -279,7 +541,7 @@ export default function CarDetailScreen({
       </header>
 
       {/* Main Responsive Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 pt-4 sm:pt-8">
         {/* Desktop Breadcrumbs & Top Bar */}
         <div className="hidden md:flex items-center justify-between pb-6 border-b border-slate-200/80 mb-6">
           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -321,8 +583,57 @@ export default function CarDetailScreen({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column (Gallery & In-Depth Details) */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-            {/* Main Photo Gallery with Pan Gesture & Snap Indexing */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-slate-200/80 shadow-xs">
+            {/* Main Photo Gallery with Pan Gesture & Continuous Auto-Updating Category Navigation */}
+            <div className="bg-white rounded-2xl p-3 sm:p-5 border border-slate-200/80 shadow-xs">
+              {/* Category Navigation Bar (Clean Themed Dual-Tone, Auto-Updates as User Scrolls) */}
+              {availableCategories.length > 1 && (
+                <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b border-slate-100">
+                  <div
+                    ref={categoryTabsRef}
+                    className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none py-0.5"
+                  >
+                    {availableCategories.map((tab) => {
+                      const TabIcon = tab.icon
+                      const isActive = activeCategory === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          data-active={isActive ? 'true' : 'false'}
+                          onClick={() => handleCategoryTabClick(tab.id)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-brand text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80 hover:text-slate-950 border border-slate-200/60'
+                          }`}
+                        >
+                          <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                          <span>{tab.shortTitle}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                              isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {tab.count}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Fullscreen Expand Button (Themed) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsFullscreenOpen(true)}
+                    className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-950 font-semibold px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition shrink-0 cursor-pointer"
+                    title="Open Fullscreen Studio"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Studio</span>
+                  </button>
+                </div>
+              )}
+
               {/* Hero Image Slider Container */}
               <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-slate-100 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm group select-none">
                 {/* Horizontal Scroll Snap Track with Pan Drag */}
@@ -338,10 +649,13 @@ export default function CarDetailScreen({
                   }`}
                   style={{ WebkitOverflowScrolling: 'touch' }}
                 >
-                  {car.gallery.map((item, idx) => (
+                  {orderedGallery.map((item, idx) => (
                     <div
                       key={item.id || idx}
-                      className="w-full min-w-full h-full snap-center shrink-0 relative bg-slate-100 flex items-center justify-center select-none"
+                      onClick={() => {
+                        if (!hasMoved) setIsFullscreenOpen(true)
+                      }}
+                      className="w-full min-w-full h-full snap-center shrink-0 relative bg-slate-100 flex items-center justify-center select-none cursor-pointer"
                     >
                       <img
                         src={item.image}
@@ -358,7 +672,7 @@ export default function CarDetailScreen({
                   <button
                     type="button"
                     onClick={handlePrevPhoto}
-                    className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white items-center justify-center backdrop-blur-md transition shadow-lg active:scale-90 z-20"
+                    className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white items-center justify-center backdrop-blur-md transition shadow-lg active:scale-90 z-20 cursor-pointer"
                     aria-label="Previous photo"
                   >
                     <ChevronLeft className="w-5 h-5 stroke-[2.2]" />
@@ -366,56 +680,87 @@ export default function CarDetailScreen({
                 )}
 
                 {/* Right Arrow Button (Desktop hover) */}
-                {activePhotoIndex < car.gallery.length - 1 && (
+                {activePhotoIndex < orderedGallery.length - 1 && (
                   <button
                     type="button"
                     onClick={handleNextPhoto}
-                    className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white items-center justify-center backdrop-blur-md transition shadow-lg active:scale-90 z-20"
+                    className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white items-center justify-center backdrop-blur-md transition shadow-lg active:scale-90 z-20 cursor-pointer"
                     aria-label="Next photo"
                   >
                     <ChevronRight className="w-5 h-5 stroke-[2.2]" />
                   </button>
                 )}
 
-                {/* Inspected & Verified Badge (Matches Image 2) */}
+                {/* Inspected & Verified Badge */}
                 <div
-                  onClick={onOpenInspection}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenInspection()
+                  }}
                   className="absolute top-3 left-3 bg-black/75 backdrop-blur-md text-white text-[10.5px] sm:text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md cursor-pointer hover:bg-black/90 transition z-20"
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-white" />
-                  <span>{car.inspectedBadge}</span>
+                  <span>{car.inspectedBadge || 'Inspected & Verified'}</span>
                 </div>
 
-                {/* Photo Counter 1/12 (Matches Image 2, updates in real-time as user pans!) */}
-                <div className="absolute bottom-3 right-3 bg-black/75 backdrop-blur-md text-white text-[11px] font-medium px-2.5 py-0.5 rounded-md shadow-sm z-20 pointer-events-none">
-                  {activePhotoIndex + 1} / {car.totalPhotos || car.gallery.length}
+                {/* Top-Right: Category & Perspective Badge (Themed monochrome) */}
+                {currentPhoto && (
+                  <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10.5px] sm:text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md z-20 pointer-events-none max-w-[65%] sm:max-w-none">
+                    {React.createElement(currentPhoto.categoryIcon || Car, {
+                      className: 'w-3.5 h-3.5 text-white/80 shrink-0',
+                    })}
+                    <span className="font-semibold text-white whitespace-nowrap">{currentPhoto.categoryShortTitle}</span>
+                    <span className="text-white/40">•</span>
+                    <span className="text-white/90 truncate">{currentPhoto.label}</span>
+                  </div>
+                )}
+
+                {/* Bottom-Left: Expand Studio Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreenOpen(true)}
+                  className="absolute bottom-3 left-3 bg-black/60 hover:bg-black/85 backdrop-blur-md text-white/90 text-[10.5px] font-medium px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm transition z-20 cursor-pointer"
+                >
+                  <Maximize2 className="w-3 h-3 text-white" />
+                  <span className="hidden sm:inline">Studio</span>
+                </button>
+
+                {/* Photo Counter 1/N (Accurate based on total vehicle gallery length!) */}
+                <div className="absolute bottom-3 right-3 bg-black/75 backdrop-blur-md text-white text-xs font-semibold px-2.5 py-0.5 rounded-xl shadow-sm z-20 pointer-events-none flex items-center gap-1.5">
+                  <span>{activePhotoIndex + 1} / {orderedGallery.length}</span>
                 </div>
               </div>
 
-              {/* 5 Interactive Thumbnails (Matches Image 2, synchronized with snap index) */}
-              <div className="grid grid-cols-5 gap-2 sm:gap-3 mt-3">
-                {car.gallery.map((item, idx) => {
-                  const isSelected = activePhotoIndex === idx
-                  return (
-                    <button
-                      key={item.id || idx}
-                      type="button"
-                      onClick={() => scrollToPhoto(idx)}
-                      className={`relative aspect-[16/10] rounded-xl overflow-hidden bg-slate-100 transition-all duration-200 border cursor-pointer ${
-                        isSelected
-                          ? 'ring-2 ring-slate-900 border-transparent shadow-sm scale-[1.02]'
-                          : 'border-slate-200/80 opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <img
-                        src={item.thumb}
-                        alt={item.label}
-                        draggable={false}
-                        className="w-full h-full object-cover select-none pointer-events-none"
-                      />
-                    </button>
-                  )
-                })}
+              {/* Interactive Responsive Thumbnails with Clean Unobstructed Photos */}
+              <div className="relative mt-2">
+                <div
+                  ref={thumbnailsScrollRef}
+                  className="flex items-center gap-2 sm:gap-3 overflow-x-auto py-2.5 px-1 scrollbar-none snap-x"
+                >
+                  {orderedGallery.map((item, idx) => {
+                    const isSelected = activePhotoIndex === idx
+                    return (
+                      <button
+                        key={item.id || idx}
+                        type="button"
+                        onClick={() => scrollToPhoto(idx)}
+                        className={`relative aspect-[16/10] w-[24%] sm:w-[18%] md:w-[16%] min-w-[80px] sm:min-w-[104px] max-w-[130px] rounded-xl overflow-hidden bg-slate-100 transition-all duration-200 border-2 cursor-pointer shrink-0 snap-center group ${
+                          isSelected
+                            ? 'border-slate-950 shadow-md opacity-100'
+                            : 'border-slate-200/80 opacity-70 hover:opacity-100 hover:border-slate-400'
+                        }`}
+                        title={`${item.categoryShortTitle}: ${item.label}`}
+                      >
+                        <img
+                          src={item.thumb}
+                          alt={item.label}
+                          draggable={false}
+                          className="w-full h-full object-cover select-none pointer-events-none"
+                        />
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
@@ -432,66 +777,35 @@ export default function CarDetailScreen({
 
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <p className="text-xs text-slate-500 font-medium truncate">{car.variant}</p>
-                <button
-                  onClick={onOpenEmi}
-                  className="text-[11px] text-slate-600 hover:text-slate-900 font-medium inline-flex items-center gap-0.5 transition shrink-0 whitespace-nowrap"
-                >
-                  <span>{car.emi}</span>
-                  <ArrowRight className="w-3 h-3 ml-0.5" />
-                </button>
+                <p className="text-xs text-slate-600 font-medium shrink-0 whitespace-nowrap">
+                  {resolveCarEmi(car).label}
+                </p>
               </div>
             </div>
 
+            <div className="lg:hidden">
+              <CarEmiOffer car={car} />
+            </div>
+
             {/* 5 Key Specs Row (Exact match to Image 2) */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="ui-inset-surface overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/50 p-3 sm:p-6">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 hidden sm:block">
                 Vehicle Overview
               </h3>
-              <div className="grid grid-cols-5 py-2 sm:py-3 text-center divide-x divide-slate-100">
-                {/* Year */}
-                <div className="flex flex-col items-center px-0.5">
-                  <div className="flex items-center gap-1 mb-0.5 text-slate-800">
-                    <img src="/icons/reg-year.png" alt="Year" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                    <span className="text-[11px] sm:text-sm font-bold truncate">{car.year}</span>
+              <div className="grid grid-cols-5 divide-x divide-slate-100 text-center">
+                {[
+                  { icon: '/icons/reg-year.png', alt: 'Year', value: car.year, label: 'Year' },
+                  { icon: '/icons/odometer.png', alt: 'Odometer', value: car.km.replace(' km', ''), label: 'Driven' },
+                  { icon: '/icons/fuel.png', alt: 'Fuel', value: car.fuel, label: 'Fuel' },
+                  { icon: '/icons/transmission.png', alt: 'Transmission', value: car.transmission, label: 'Gearbox' },
+                  { icon: '/icons/ownership.png', alt: 'Ownership', value: car.ownership, label: 'Owner' },
+                ].map((spec) => (
+                  <div key={spec.label} className="flex flex-col items-center gap-1.5 px-1 py-1 min-w-0">
+                    <img src={spec.icon} alt={spec.alt} className="w-5 h-5 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                    <span className="text-xs sm:text-sm font-bold text-slate-800 leading-tight min-h-[2lh] flex items-center justify-center text-balance break-words max-w-full">{spec.value}</span>
+                    <span className="text-[11px] text-slate-500 font-medium leading-none">{spec.label}</span>
                   </div>
-                  <span className="text-[9px] sm:text-xs text-slate-400 font-medium truncate">Year</span>
-                </div>
-
-                {/* Driven */}
-                <div className="flex flex-col items-center px-0.5">
-                  <div className="flex items-center gap-1 mb-0.5 text-slate-800">
-                    <img src="/icons/odometer.png" alt="Odometer" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                    <span className="text-[11px] sm:text-sm font-bold truncate">{car.km.replace(' km', '')}</span>
-                  </div>
-                  <span className="text-[9px] sm:text-xs text-slate-400 font-medium truncate">Driven</span>
-                </div>
-
-                {/* Fuel */}
-                <div className="flex flex-col items-center px-0.5">
-                  <div className="flex items-center gap-1 mb-0.5 text-slate-800">
-                    <img src="/icons/fuel.png" alt="Fuel" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                    <span className="text-[11px] sm:text-sm font-bold truncate">{car.fuel}</span>
-                  </div>
-                  <span className="text-[9px] sm:text-xs text-slate-400 font-medium truncate">Fuel</span>
-                </div>
-
-                {/* Transmission */}
-                <div className="flex flex-col items-center px-0.5">
-                  <div className="flex items-center gap-1 mb-0.5 text-slate-800">
-                    <img src="/icons/transmission.png" alt="Transmission" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                    <span className="text-[11px] sm:text-sm font-bold truncate">{car.transmission}</span>
-                  </div>
-                  <span className="text-[9px] sm:text-xs text-slate-400 font-medium truncate">Transmission</span>
-                </div>
-
-                {/* Ownership */}
-                <div className="flex flex-col items-center px-0.5">
-                  <div className="flex items-center gap-1 mb-0.5 text-slate-800">
-                    <img src="/icons/ownership.png" alt="Ownership" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                    <span className="text-[11px] sm:text-sm font-bold truncate">{car.ownership}</span>
-                  </div>
-                  <span className="text-[9px] sm:text-xs text-slate-400 font-medium truncate">Ownership</span>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -499,7 +813,7 @@ export default function CarDetailScreen({
             <div className="md:hidden grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => onBookTestDrive(car)}
-                className="py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 font-semibold text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition shadow-xs"
+                className="ui-inset-surface flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 py-3 text-xs font-semibold text-slate-900 transition hover:bg-slate-100 active:scale-[0.99]"
               >
                 <Calendar className="w-4 h-4 text-slate-700" />
                 <span>Book Test Drive</span>
@@ -507,15 +821,15 @@ export default function CarDetailScreen({
 
               <button
                 onClick={() => onOpenWhatsApp(car)}
-                className="py-3 rounded-xl bg-[#111827] hover:bg-black text-white font-semibold text-xs flex items-center justify-center gap-2 active:scale-[0.99] transition shadow-xs"
+                className="ui-btn-whatsapp flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-semibold text-slate-950 transition active:scale-[0.99]"
               >
-                <MessageCircle className="w-4 h-4 text-slate-200" />
+                <MessageCircle className="h-4 w-4 text-slate-950" />
                 <span>Chat on WhatsApp</span>
               </button>
             </div>
 
             {/* About this car Section (Matches Image 2) */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
               <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-2">
                 About this car
               </h2>
@@ -536,7 +850,7 @@ export default function CarDetailScreen({
             </div>
 
             {/* Key Features Section (2x4 Grid on mobile, expands on desktop, matches Image 2) */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
               <div className="flex items-center justify-between mb-3.5">
                 <h2 className="text-sm sm:text-base font-bold text-slate-900">
                   Key Features
@@ -551,30 +865,46 @@ export default function CarDetailScreen({
               </div>
 
               <div className="grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3">
-                {car.keyFeatures.map((feat) => (
-                  <div
-                    key={feat.id}
-                    className="rounded-2xl p-2.5 sm:p-3 bg-[#f8fafc] border border-slate-100 flex flex-col items-center justify-center text-center gap-1.5 sm:gap-2 transition hover:bg-slate-50 hover:shadow-xs"
-                  >
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
-                      {feat.iconUrl ? (
-                        <img src={feat.iconUrl} alt={feat.name} className="w-6 h-6 sm:w-7 sm:h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                      ) : (
-                        featureIconMap[feat.iconName] || (
-                          <Sun className="w-5 h-5 text-slate-700" />
-                        )
-                      )}
+                {(car.keyFeatures || []).map((feat, idx) => {
+                  const featObj =
+                    typeof feat === 'string'
+                      ? getFeatureById(feat) || { id: feat, name: feat, iconName: 'Sparkles' }
+                      : feat
+                  const iconName = featObj.iconName || 'Sparkles'
+                  const displayName = featObj.name || featObj.id || 'Feature'
+
+                  return (
+                    <div
+                      key={featObj.id || idx}
+                      className="ui-inset-tile flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-2.5 text-center transition hover:bg-slate-100 sm:gap-2 sm:p-3"
+                    >
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
+                        {featObj.iconUrl ? (
+                          <img
+                            src={featObj.iconUrl}
+                            alt={displayName}
+                            className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        ) : null}
+                        <span className={featObj.iconUrl ? 'hidden' : 'inline-flex'}>
+                          {featureIconMap[iconName] ||
+                            renderFeatureIcon(iconName, 'w-5 h-5 text-slate-800')}
+                        </span>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-800 leading-tight">
+                        {displayName}
+                      </span>
                     </div>
-                    <span className="text-[11px] sm:text-xs font-semibold text-slate-800 leading-tight">
-                      {feat.name}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
             {/* Condition & History Section (2x2 Grid, matches Image 2) */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
               <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-3">
                 Condition & History
               </h2>
@@ -588,7 +918,7 @@ export default function CarDetailScreen({
                   <img src="/icons/quality-check-140.png" alt="Inspected" className="w-5 h-5 sm:w-6 sm:h-6 object-contain shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">Inspected</p>
-                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">200+ point check</p>
+                    <p className="text-xs text-slate-500 mt-0.5">200+ point check</p>
                   </div>
                 </div>
 
@@ -600,7 +930,7 @@ export default function CarDetailScreen({
                   <img src="/icons/service-icon.svg" alt="Service History" className="w-5 h-5 sm:w-6 sm:h-6 object-contain shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">Service History</p>
-                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Available</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Available</p>
                   </div>
                 </div>
 
@@ -612,7 +942,7 @@ export default function CarDetailScreen({
                   <img src="/icons/verified-seller.png" alt="Verified" className="w-5 h-5 sm:w-6 sm:h-6 object-contain shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">No Major Accidents</p>
-                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Verified</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Verified</p>
                   </div>
                 </div>
 
@@ -624,54 +954,19 @@ export default function CarDetailScreen({
                   <img src="/icons/rc-icon.svg" alt="RC Verified" className="w-5 h-5 sm:w-6 sm:h-6 object-contain shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">RC Verified</p>
-                    <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Valid till 2028</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Valid till 2028</p>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Dealer Card (Matches Image 2) */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <img
-                  src={car?.dealer?.image || '/nova/dealer-thumb.jpg'}
-                  alt={car?.dealer?.name || 'Authorized Dealer'}
-                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl object-cover border border-slate-100 shadow-xs"
-                />
-                <div>
-                  <h3 className="text-xs sm:text-base font-bold text-slate-900 leading-snug">
-                    {car.dealer.name}
-                  </h3>
-                  <p className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3 h-3 text-slate-400" />
-                    <span>{car.dealer.location}</span>
-                  </p>
-                  <div className="flex items-center gap-1 mt-1 text-[11px] sm:text-xs text-amber-500 font-semibold">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-500" />
-                    <span>{car.dealer.rating}</span>
-                    <span className="text-slate-400 font-normal">
-                      ({car.dealer.reviewsCount} reviews)
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={onOpenDealer}
-                className="py-1.5 sm:py-2.5 px-3 sm:px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-900 font-semibold text-xs sm:text-sm inline-flex items-center gap-1 transition"
-              >
-                <span>View Dealer</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
             </div>
           </div>
 
           {/* Right Column (Desktop Sticky Booking & Pricing Panel) */}
           <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
-            <div className="sticky top-28 bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xl space-y-5">
+            <div className="sticky top-28 bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xl space-y-5">
               {/* Inspected Badge */}
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 text-white">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand text-white">
                   <ShieldCheck className="w-4 h-4 text-white" /> Inspected & Verified
                 </span>
                 <span className="text-xs text-slate-400 font-mono">ID: NM-409</span>
@@ -691,27 +986,13 @@ export default function CarDetailScreen({
                 </div>
               </div>
 
-              {/* EMI Box */}
-              <div
-                onClick={onOpenEmi}
-                className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition"
-              >
-                <div>
-                  <p className="text-[11px] text-slate-600 font-semibold">Easy Monthly EMI</p>
-                  <p className="text-sm font-bold text-slate-950 font-mono mt-0.5">
-                    {car.emi}
-                  </p>
-                </div>
-                <button className="text-xs font-bold text-slate-900 inline-flex items-center gap-1">
-                  Customize <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
+              <CarEmiOffer car={car} />
 
               {/* Action Buttons */}
               <div className="space-y-2.5 pt-2">
                 <button
                   onClick={() => onBookTestDrive(car)}
-                  className="w-full py-3.5 rounded-2xl bg-slate-950 hover:bg-black text-white font-bold text-sm shadow-md hover:shadow-xl transition active:scale-[0.99] flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl bg-brand hover:bg-brand-hover text-white font-bold text-sm shadow-md hover:shadow-xl transition active:scale-[0.99] flex items-center justify-center gap-2"
                 >
                   <Calendar className="w-4 h-4" />
                   <span>Book Free Doorstep Test Drive</span>
@@ -720,9 +1001,9 @@ export default function CarDetailScreen({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => onOpenWhatsApp(car)}
-                    className="py-3 rounded-2xl bg-slate-900 hover:bg-black text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition shadow-xs"
+                    className="ui-btn-whatsapp flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-semibold text-slate-950 transition active:scale-[0.99]"
                   >
-                    <MessageCircle className="w-4 h-4 text-slate-200" />
+                    <MessageCircle className="h-4 w-4 text-slate-950" />
                     <span>WhatsApp Chat</span>
                   </button>
                   <button
@@ -756,18 +1037,15 @@ export default function CarDetailScreen({
       </div>
 
       {/* Sticky Bottom Bar (ONLY visible on mobile, exactly matching Image 2!) */}
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 md:hidden shadow-xl">
+      <div className="ui-inset-bar-top fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           {/* Price & EMI */}
           <div>
             <p className="text-base font-bold text-slate-900 leading-tight font-mono">
               {car.priceFormatted}
             </p>
-            <p
-              onClick={onOpenEmi}
-              className="text-[11px] text-slate-500 font-medium cursor-pointer hover:text-slate-900"
-            >
-              {car.emi}
+            <p className="text-xs text-slate-500 font-medium">
+              {resolveCarEmi(car).label}
             </p>
           </div>
 
@@ -775,7 +1053,7 @@ export default function CarDetailScreen({
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenCall}
-              className="py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 font-semibold text-xs flex items-center gap-1.5 active:scale-[0.99] transition shadow-xs"
+              className="ui-inset-surface flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-100 active:scale-[0.99]"
             >
               <Phone className="w-3.5 h-3.5 text-slate-700" />
               <span>Call</span>
@@ -783,7 +1061,7 @@ export default function CarDetailScreen({
 
             <button
               onClick={() => onBookTestDrive(car)}
-              className="py-2.5 px-4 rounded-xl bg-slate-950 hover:bg-black text-white font-semibold text-xs flex items-center gap-1.5 active:scale-[0.99] transition shadow-sm"
+              className="py-2.5 px-4 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold text-xs flex items-center gap-1.5 active:scale-[0.99] transition shadow-sm"
             >
               <Calendar className="w-3.5 h-3.5 text-white" />
               <span>Book Test Drive</span>
@@ -791,6 +1069,153 @@ export default function CarDetailScreen({
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Photo Studio Lightbox Modal */}
+      <AnimatePresence>
+        {isFullscreenOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 select-none"
+          >
+            {/* Lightbox Header */}
+            <div className="flex items-center justify-between gap-4 w-full max-w-6xl mx-auto text-white">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
+                  <span>{car.title}</span>
+                  <span className="text-white/40">•</span>
+                  <span className="text-slate-400 font-normal text-xs sm:text-sm">{car.variant}</span>
+                </h3>
+                {currentPhoto && (
+                  <div className="flex items-center gap-1.5 text-xs text-white/80 font-medium mt-0.5">
+                    {React.createElement(currentPhoto.categoryIcon || Car, { className: 'w-3.5 h-3.5 text-white/80' })}
+                    <span>{currentPhoto.categoryTitle}</span>
+                    <span className="text-white/30">•</span>
+                    <span className="text-slate-300">{currentPhoto.label}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="text-xs font-semibold text-white/80 bg-white/10 px-3 py-1.5 rounded-full">
+                  {activePhotoIndex + 1} / {orderedGallery.length}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreenOpen(false)}
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                  aria-label="Close fullscreen view"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Lightbox Main Image & Prev/Next */}
+            <div className="relative flex-1 flex items-center justify-center my-4 max-w-6xl w-full mx-auto overflow-hidden">
+              {activePhotoIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActivePhotoIndex((prev) => Math.max(0, prev - 1))
+                  }}
+                  className="absolute left-2 sm:left-4 z-20 w-11 h-11 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-md transition shadow-xl cursor-pointer"
+                  aria-label="Previous photo"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              )}
+
+              {activePhotoIndex < orderedGallery.length - 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActivePhotoIndex((prev) => Math.min(orderedGallery.length - 1, prev + 1))
+                  }}
+                  className="absolute right-2 sm:right-4 z-20 w-11 h-11 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-md transition shadow-xl cursor-pointer"
+                  aria-label="Next photo"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              )}
+
+              {currentPhoto && (
+                <motion.img
+                  key={currentPhoto.id || activePhotoIndex}
+                  src={currentPhoto.image}
+                  alt={currentPhoto.label}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="max-h-[75vh] max-w-full object-contain rounded-xl select-none"
+                />
+              )}
+            </div>
+
+            {/* Lightbox Bottom Strip: Categories & Thumbnails */}
+            <div className="w-full max-w-4xl mx-auto space-y-3">
+              {/* Categories Bar in Modal */}
+              <div className="flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+                {availableCategories.map((tab) => {
+                  const TabIcon = tab.icon
+                  const isActive = activeCategory === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => handleCategoryTabClick(tab.id)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-white text-slate-900 shadow-md'
+                          : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                      }`}
+                    >
+                      <TabIcon className="w-3.5 h-3.5" />
+                      <span>{tab.shortTitle}</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                          isActive ? 'bg-slate-900 text-white' : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Thumbnails in Modal */}
+              <div className="flex items-center justify-center gap-2 overflow-x-auto py-2 px-1 scrollbar-none">
+                {orderedGallery.map((item, idx) => {
+                  const isSelected = activePhotoIndex === idx
+                  return (
+                    <button
+                      key={item.id || idx}
+                      type="button"
+                      onClick={() => setActivePhotoIndex(idx)}
+                      className={`relative aspect-[16/10] w-16 sm:w-20 rounded-lg overflow-hidden bg-slate-800 transition border-2 cursor-pointer shrink-0 ${
+                        isSelected
+                          ? 'border-white opacity-100 shadow-md'
+                          : 'border-white/20 opacity-50 hover:opacity-90 hover:border-white/50'
+                      }`}
+                    >
+                      <img
+                        src={item.thumb}
+                        alt={item.label}
+                        className="w-full h-full object-cover select-none pointer-events-none"
+                      />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

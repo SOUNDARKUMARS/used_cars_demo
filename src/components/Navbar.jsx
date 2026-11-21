@@ -14,19 +14,31 @@ import {
   Home,
   Banknote,
   Calculator,
+  User,
+  LogOut,
+  Bell,
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { isUserAdmin } from '../context/authUtils'
+import UserAvatar from './UserAvatar'
+import BrandLogo from './BrandLogo'
+import { BRAND_MAPS_URL } from '../config/brand'
 
 export default function Navbar({
   currentScreen,
   onNavigate,
+  onGoHome,
   wishlistCount = 0,
   onOpenSearch,
   onOpenCall,
   onOpenTestDrive,
+  onOpenCarAlert,
 }) {
+  const { user, requireAuth, logout } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [selectedCity, setSelectedCity] = useState('Tiruppur')
   const [cityDropdownOpen, setCityDropdownOpen] = useState(false)
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
 
   const cities = ['Tiruppur', 'Coimbatore', 'Chennai', 'Erode', 'Salem', 'Madurai']
 
@@ -37,6 +49,8 @@ export default function Navbar({
     { label: 'Sell Car', screen: 'sell' },
     { label: 'Finance & EMI', screen: 'finance' },
   ]
+
+  const goHome = () => (onGoHome ? onGoHome() : onNavigate('home'))
 
   const handleLinkClick = (link) => {
     if (link.screen) {
@@ -57,29 +71,29 @@ export default function Navbar({
   return (
     <>
       <header className={`sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 transition-all duration-200 ${currentScreen === 'detail' ? 'hidden md:block' : ''}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+        <div className="max-w-[1280px] mx-auto px-3 sm:px-6 min-h-[5.25rem] sm:h-[5.5rem] flex items-center justify-between gap-2">
           {/* Brand Logo & Certified Pill (Matches Reference Mockup) */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex min-w-0 flex-1 items-center sm:flex-none sm:mr-4 lg:mr-8">
             <button
-              onClick={() => onNavigate('home')}
-              className="flex items-center text-left group focus:outline-none"
+              type="button"
+              onClick={goHome}
+              className="group flex max-w-full items-center text-left focus:outline-none"
+              aria-label="Harsha cars home"
             >
-              <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-slate-950 font-sans group-hover:text-slate-700 transition">
-                NOVA
-              </span>
-              <span className="font-medium text-xl sm:text-2xl tracking-tight text-slate-900 font-sans ml-1 sm:ml-1.5">
-                MOTORS
-              </span>
+              <BrandLogo
+                imgClassName="h-[3.75rem] sm:h-16 w-auto max-w-full object-contain object-left"
+                className="group-hover:opacity-90 transition-opacity"
+              />
             </button>
           </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-5 lg:gap-7">
+          {/* Desktop Navigation Links - Compact below xl, full on wide screens */}
+          <nav className="hidden xl:flex items-center gap-6 2xl:gap-8 whitespace-nowrap">
             {navLinks.map((link) => (
               <button
                 key={link.label}
                 onClick={() => handleLinkClick(link)}
-                className={`text-xs lg:text-sm font-semibold transition flex items-center gap-1 ${
+                className={`text-xs xl:text-sm font-semibold transition flex items-center gap-1 whitespace-nowrap ${
                   currentScreen === link.screen
                     ? 'text-slate-950 font-bold'
                     : 'text-slate-600 hover:text-slate-950'
@@ -87,23 +101,40 @@ export default function Navbar({
               >
                 <span>{link.label}</span>
                 {(link.id === 'body-types' || link.id === 'brands-section') && (
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 )}
               </button>
             ))}
           </nav>
 
-          {/* Right Action Tools */}
-          <div className="flex items-center gap-2 sm:gap-3 text-slate-800">
+          {/* Laptop Compact Links (lg to xl) */}
+          <nav className="hidden md:flex xl:hidden items-center gap-5 whitespace-nowrap">
+            {navLinks.filter(l => l.screen).map((link) => (
+              <button
+                key={link.label}
+                onClick={() => handleLinkClick(link)}
+                className={`text-xs font-semibold transition flex items-center gap-1 whitespace-nowrap ${
+                  currentScreen === link.screen
+                    ? 'text-slate-950 font-bold'
+                    : 'text-slate-600 hover:text-slate-950'
+                }`}
+              >
+                <span>{link.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          {/* Right Action Tools - Unified control styles with rounded-xl */}
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 text-slate-800">
             {/* City Selector (Desktop) */}
-            <div className="relative hidden xl:block">
+            <div className="relative hidden 2xl:block">
               <button
                 onClick={() => setCityDropdownOpen(!cityDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:border-slate-300 text-xs font-semibold text-slate-700 transition shadow-2xs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition shadow-2xs"
               >
                 <MapPin className="w-3.5 h-3.5 text-slate-500" />
                 <span>{selectedCity}</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
 
               <AnimatePresence>
@@ -124,7 +155,7 @@ export default function Navbar({
                         }}
                         className={`w-full text-left px-3 py-2 text-xs rounded-xl font-medium transition ${
                           selectedCity === c
-                            ? 'bg-slate-900 text-white font-bold'
+                            ? 'bg-brand text-white font-bold'
                             : 'text-slate-700 hover:bg-slate-100'
                         }`}
                       >
@@ -136,10 +167,10 @@ export default function Navbar({
               </AnimatePresence>
             </div>
 
-            {/* Search Icon (Desktop only, mobile has search right in hero card) */}
+            {/* Search Icon (Desktop only) */}
             <button
               onClick={onOpenSearch}
-              className="hidden md:inline-flex p-2 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-full transition active:scale-90"
+              className="hidden md:inline-flex w-10 h-10 items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-xl transition"
               aria-label="Search"
             >
               <Search className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2]" />
@@ -148,60 +179,174 @@ export default function Navbar({
             {/* Wishlist Button (Desktop) */}
             <button
               onClick={() => onNavigate('profile')}
-              className="hidden md:inline-flex p-2 text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-full transition active:scale-90 relative"
+              className="hidden md:inline-flex w-10 h-10 items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-xl transition relative"
               aria-label="Wishlist"
             >
               <Heart className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2]" />
               {wishlistCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                <span className="absolute top-1 right-1 w-4 h-4 bg-brand text-white text-xs font-bold rounded-full flex items-center justify-center shadow-xs">
                   {wishlistCount}
                 </span>
               )}
             </button>
 
-            {/* Concierge Hotline Pill (Desktop - Matches Image 1) */}
+            {/* Concierge Hotline Button (Desktop) */}
             <button
               onClick={onOpenCall}
-              className="hidden lg:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:border-slate-300 text-xs font-semibold text-slate-800 transition active:scale-95 shadow-2xs"
+              className="hidden xl:inline-flex w-10 h-10 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
+              aria-label="Call Concierge"
+              title="Call Showroom Concierge"
             >
-              <Phone className="w-3.5 h-3.5 text-slate-600" />
-            
+              <Phone className="w-4 h-4 text-slate-700" />
             </button>
 
-            {/* Book Test Drive CTA (Desktop - Matches Image 1) */}
+            {/* Single Primary Action: Book Test Drive CTA */}
             <button
               onClick={onOpenTestDrive}
-              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-950 text-white font-semibold text-xs hover:bg-black shadow-xs transition active:scale-95"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand text-white font-semibold text-xs hover:bg-brand-hover shadow-xs transition active:scale-95 whitespace-nowrap"
             >
               <span>Book Test Drive</span>
             </button>
 
-            {/* Admin Portal Button */}
-            <button
-              onClick={() => onNavigate('login')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 font-semibold text-xs transition active:scale-95 shadow-2xs"
-              title="Admin Portal Login (admin@123 / 1212)"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-              <span className="hidden sm:inline">Admin</span>
-            </button>
+            {/* Secondary Action: Sign In or User Profile */}
+            <div className="relative hidden md:block">
+              {user ? (
+                <div>
+                  <button
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-800 transition shadow-2xs whitespace-nowrap"
+                    title={user.email}
+                  >
+                    <UserAvatar user={user} className="w-6 h-6" />
+                    <span className="max-w-[90px] truncate hidden lg:inline">{user.firstName || user.name}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
 
-            {/* Mobile Call Icon Button (Matches Image 2) */}
+                  <AnimatePresence>
+                    {userDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl p-2 shadow-xl z-50 text-slate-800 divide-y divide-slate-100"
+                      >
+                        <div className="px-3 py-2">
+                          <p className="text-xs font-bold text-slate-900 truncate">{user.name}</p>
+                          <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                        </div>
+                        <div className="py-1">
+                          <button
+                            onClick={() => {
+                              onNavigate('profile')
+                              setUserDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-slate-50 font-medium flex items-center gap-2 transition text-slate-700"
+                          >
+                            <Heart className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Saved Wishlist ({wishlistCount})</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (onOpenCarAlert) onOpenCarAlert()
+                              setUserDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-slate-50 font-medium flex items-center gap-2 transition text-slate-700"
+                          >
+                            <Bell className="w-3.5 h-3.5 text-slate-700" />
+                            <span>Set Car Alert / Reminder</span>
+                          </button>
+                          {isUserAdmin(user) && (
+                            <button
+                              onClick={() => {
+                                onNavigate('admin')
+                                setUserDropdownOpen(false)
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-slate-50 text-slate-900 font-semibold flex items-center gap-2 transition"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5 text-slate-900" />
+                              <span>Admin Console</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="pt-1">
+                          <button
+                            onClick={() => {
+                              logout()
+                              setUserDropdownOpen(false)
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-slate-50 text-slate-600 font-medium flex items-center gap-2 transition"
+                          >
+                            <LogOut className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Sign Out</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <button
+                  onClick={() =>
+                    requireAuth(() => {}, {
+                      title: 'Sign In with Google',
+                      description:
+                        'Sign in to sync your saved cars, track test drive requests, and receive certified price evaluations.',
+                    })
+                  }
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold transition active:scale-95 shadow-2xs whitespace-nowrap"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>Sign In</span>
+                </button>
+              )}
+            </div>
+
+            {/* Admin Portal Button - Visible ONLY for designated administrator soundartdc@gmail.com */}
+            {isUserAdmin(user) && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold text-xs transition active:scale-95 shadow-2xs whitespace-nowrap"
+                title="Admin Console"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-slate-300" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
+
+            {/* Mobile Call Icon Button (44px touch target, matches hamburger) */}
             <button
               onClick={onOpenCall}
-              className="p-2 rounded-xl border border-slate-200 text-slate-800 hover:bg-slate-50 md:hidden transition active:scale-90 shadow-2xs"
+              className="w-11 h-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-900 hover:bg-slate-50 md:hidden transition active:scale-95 shadow-2xs"
               aria-label="Call Showroom"
             >
-              <Phone className="w-4 h-4 text-slate-900" />
+              <Phone className="w-5 h-5 text-slate-900" />
             </button>
 
-            {/* Mobile Hamburger Menu (Matches Image 2) */}
+            {/* Mobile Hamburger Menu (44px touch target, matches phone) */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="p-2 text-slate-900 hover:bg-slate-100 rounded-xl md:hidden transition active:scale-90"
+              className="w-11 h-11 flex items-center justify-center rounded-xl border border-slate-200 text-slate-900 hover:bg-slate-50 md:hidden transition active:scale-95 shadow-2xs"
               aria-label="Open Menu"
             >
-              <Menu className="w-6 h-6 stroke-[2]" />
+              <Menu className="w-5 h-5 stroke-[2]" />
             </button>
           </div>
         </div>
@@ -231,22 +376,77 @@ export default function Navbar({
             >
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-xl tracking-tight text-slate-950 font-sans">NOVA</span>
-                    <span className="font-medium text-xl tracking-tight text-slate-900 font-sans">MOTORS</span>
-                  </div>
+                  <BrandLogo imgClassName="h-11 w-auto max-w-[260px] object-contain" />
                   <button
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 transition active:scale-90"
+                    className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center transition active:scale-90"
+                    aria-label="Close Menu"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="py-6 space-y-1 text-sm font-semibold">
+                {/* Mobile User Profile Section */}
+                <div className="pt-4 pb-2">
+                  {user ? (
+                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 truncate">
+                        <UserAvatar user={user} className="w-9 h-9" textClassName="text-xs" />
+                        <div className="truncate">
+                          <p className="text-xs font-bold text-slate-900 truncate">{user.name}</p>
+                          <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          logout()
+                          setMobileMenuOpen(false)
+                        }}
+                        className="w-9 h-9 text-slate-500 hover:text-red-600 rounded-xl hover:bg-slate-100 flex items-center justify-center transition active:scale-90 shrink-0"
+                        title="Sign Out"
+                      >
+                        <LogOut className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        requireAuth(() => {}, {
+                          title: 'Sign In with Google',
+                          description:
+                            'Sign in to sync your saved cars, track test drive requests, and receive certified price evaluations.',
+                        })
+                      }}
+                      className="w-full py-3 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold flex items-center justify-center gap-2 shadow-2xs transition active:scale-95"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                        />
+                      </svg>
+                      <span>Sign in with Google</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="py-4 space-y-1 text-sm font-semibold">
                   <button
                     onClick={() => {
-                      onNavigate('home')
+                      goHome()
                       setMobileMenuOpen(false)
                     }}
                     className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 transition flex items-center gap-2.5 text-slate-800"
@@ -296,19 +496,31 @@ export default function Navbar({
                   </button>
                   <button
                     onClick={() => {
-                      onNavigate('login')
+                      if (onOpenCarAlert) onOpenCarAlert()
                       setMobileMenuOpen(false)
                     }}
-                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-blue-50 transition flex items-center gap-2.5 text-blue-700 font-semibold border-t border-slate-100 mt-1 pt-3"
+                    className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 transition flex items-center gap-2.5 text-slate-800 font-semibold"
                   >
-                    <ShieldCheck className="w-4 h-4 text-blue-600" />
-                    <span>Admin Portal Login</span>
+                    <Bell className="w-4 h-4 text-slate-700" />
+                    <span>Set Vehicle Alert Reminder</span>
                   </button>
+                  {isUserAdmin(user) && (
+                    <button
+                      onClick={() => {
+                        onNavigate('admin')
+                        setMobileMenuOpen(false)
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 transition flex items-center gap-2.5 text-slate-900 font-semibold border-t border-slate-100 mt-1 pt-3"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-slate-900" />
+                      <span>Admin Console</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
                   <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-slate-900" /> Nova Standard
+                    <ShieldCheck className="w-4 h-4 text-slate-900" /> Harsha Standard
                   </p>
                   <p>• 200-Point Comprehensive Inspection</p>
                   <p>• 1-Year Comprehensive Warranty</p>
@@ -322,14 +534,19 @@ export default function Navbar({
                     setMobileMenuOpen(false)
                     onOpenCall()
                   }}
-                  className="w-full py-3 rounded-xl bg-slate-950 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs active:scale-95 transition"
+                  className="w-full py-3 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs active:scale-95 transition"
                 >
                   <Phone className="w-4 h-4" />
                   <span>Call Showroom Concierge</span>
                 </button>
-                <p className="text-[11px] text-slate-400 text-center mt-2">
-                  Tiruppur Hub • Kangeyam Road
-                </p>
+                <a
+                  href={BRAND_MAPS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs text-slate-500 text-center mt-2 hover:text-slate-900 transition"
+                >
+                  Harsha cars, Tiruppur
+                </a>
               </div>
             </motion.div>
           </div>

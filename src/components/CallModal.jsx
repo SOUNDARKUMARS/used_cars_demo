@@ -21,7 +21,7 @@ export default function CallModal({ dealer, isOpen, onClose }) {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: '100%', opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl relative text-center z-10"
+            className="w-full max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl relative text-center z-10"
           >
             <button
               onClick={onClose}
@@ -40,7 +40,7 @@ export default function CallModal({ dealer, isOpen, onClose }) {
             </p>
 
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-4">
-              <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 mb-1">
+              <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-1">
                 Direct Concierge Desk
               </p>
               <a
@@ -49,15 +49,15 @@ export default function CallModal({ dealer, isOpen, onClose }) {
               >
                 {dealer.phone}
               </a>
-              <p className="text-[11px] text-slate-500 mt-2 flex items-center justify-center gap-1">
-                <Clock className="w-3 h-3 text-slate-400" /> {dealer.hours}
+              <p className="text-xs text-slate-500 mt-2 flex items-center justify-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-slate-400" /> {dealer.hours}
               </p>
             </div>
 
             <div className="space-y-2">
               <a
                 href={`tel:${dealer.phone}`}
-                className="w-full py-3 rounded-xl bg-slate-950 hover:bg-black text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md transition active:scale-[0.98]"
+                className="w-full py-3 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md transition active:scale-[0.98]"
               >
                 <Phone className="w-3.5 h-3.5" /> Call Showroom Now
               </a>

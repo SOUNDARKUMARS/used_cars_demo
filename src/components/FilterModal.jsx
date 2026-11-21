@@ -138,28 +138,28 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
             animate={{ y: 0, scale: 1 }}
             exit={{ y: '100%', scale: 0.98 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl relative max-h-[88vh] overflow-y-auto z-10 border-t sm:border border-slate-100"
+            className="w-full max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl relative max-h-[88vh] flex flex-col z-10 border-t sm:border border-slate-100 overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-5 sticky top-0 bg-white z-20 -mx-6 px-6 -mt-6 pt-5">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 pb-3.5 pt-5">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-slate-900" />
                 <h3 className="text-base font-bold text-slate-900">Filter Pre-Owned Cars</h3>
                 {activeCount > 0 && (
-                  <span className="text-[11px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded-full ml-1">
+                  <span className="text-xs font-bold bg-slate-900 text-white px-2 py-0.5 rounded-xl ml-1">
                     {activeCount} active
                   </span>
                 )}
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-90"
+                className="p-1.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-90"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-6 pb-2">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-5">
               {/* 1. Double Thumb Budget Range Slider */}
               <div className="p-4 rounded-2xl bg-[#f8fafc] border border-slate-100 space-y-3">
                 <div className="flex items-center justify-between">
@@ -229,7 +229,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                   </div>
 
                   {/* Scale Labels */}
-                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400 mt-1">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mt-1">
                     <span>₹ 2 Lakhs</span>
                     <span>₹ 10L</span>
                     <span>₹ 20L</span>
@@ -254,9 +254,9 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                             budget: 'custom',
                           })
                         }
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition active:scale-95 ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                           isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                            ? 'bg-slate-950 text-white border-slate-950 shadow-2xs'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -336,7 +336,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                   </div>
 
                   {/* Scale Labels */}
-                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400 mt-1">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mt-1">
                     <span>0 km</span>
                     <span>25,000 km</span>
                     <span>50,000 km</span>
@@ -361,9 +361,9 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                             km: 'custom',
                           })
                         }
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition active:scale-95 ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                           isSelected
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                            ? 'bg-slate-950 text-white border-slate-950 shadow-2xs'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -387,7 +387,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                       onClick={() => setFilters({ ...filters, ownership: opt.value })}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                         (filters.ownership || 'all') === opt.value
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -408,7 +408,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                       onClick={() => setFilters({ ...filters, transmission: opt.value })}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                         (filters.transmission || 'all') === opt.value
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -429,7 +429,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                       onClick={() => setFilters({ ...filters, fuel })}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                         (filters.fuel || 'All Fuels') === fuel
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -452,7 +452,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                       onClick={() => setFilters({ ...filters, year: yr })}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                         (filters.year || 'All Years') === yr
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -473,7 +473,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
                       onClick={() => setFilters({ ...filters, bodyType: opt.value })}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition active:scale-95 ${
                         (filters.bodyType || 'all') === opt.value
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                          ? 'bg-slate-950 text-white border-slate-950 shadow-sm'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -485,7 +485,7 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
             </div>
 
             {/* Bottom Actions */}
-            <div className="flex items-center gap-2 pt-4 pb-6 -mb-6 -mx-6 px-6 mt-4 border-t border-slate-100 sticky bottom-0 bg-white z-20 shadow-[0_-8px_20px_rgba(0,0,0,0.04)]">
+            <div className="flex shrink-0 items-center gap-2 border-t border-slate-100 bg-white px-6 py-4 shadow-[0_-8px_20px_rgba(0,0,0,0.04)] pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button
                 type="button"
                 onClick={handleReset}
@@ -497,10 +497,10 @@ export default function FilterModal({ isOpen, onClose, filters, setFilters, onAp
               <button
                 type="button"
                 onClick={() => {
-                  if (onApply) onApply()
+                  if (onApply) onApply(filters)
                   onClose()
                 }}
-                className="flex-[2] py-3 px-4 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-black shadow-md transition active:scale-[0.98] flex items-center justify-center gap-1.5"
+                className="flex-[2] py-3 px-4 rounded-xl bg-brand text-white font-bold text-xs hover:bg-brand-hover shadow-md transition active:scale-[0.98] flex items-center justify-center gap-1.5"
               >
                 <Check className="w-4 h-4 stroke-[2.5]" />
                 <span>Apply Filters {activeCount > 0 ? `(${activeCount})` : ''}</span>

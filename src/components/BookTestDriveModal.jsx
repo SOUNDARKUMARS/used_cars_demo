@@ -1,9 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Calendar, Clock, MapPin, CheckCircle, ShieldCheck, Home, Building2, Lock } from 'lucide-react'
 import { addTestDrive } from '../data/carStorage'
+import { addTestDriveToSupabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import UserAvatar from './UserAvatar'
 
 export default function BookTestDriveModal({ car, isOpen, onClose }) {
+  const { user } = useAuth()
   const [date, setDate] = useState('Today, 4:00 PM')
   const [locationType, setLocationType] = useState('home')
   const [name, setName] = useState('')
@@ -11,21 +15,28 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
   const [submitted, setSubmitted] = useState(false)
   const [bookingRef, setBookingRef] = useState('')
 
+  const customerDisplayName = name || user?.name || ''
+
   const handleBooking = (e) => {
     e.preventDefault()
     try {
-      const created = addTestDrive({
-        carId: car?.id || 'featured',
-        carTitle: car?.title || 'Featured Car',
-        carPrice: car?.priceFormatted || '₹ 11,50,000',
-        carImage: car?.image || car?.gallery?.[0]?.image || '/mock_cars/honda_city_front.jpg',
-        customerName: name.trim() || 'Valued Customer',
-        phone: phone.trim() || '98421 54321',
+      const payload = {
+        carId: car?.id || '',
+        carTitle: car?.title || 'Selected Vehicle',
+        carPrice: car?.priceFormatted || '',
+        carImage: car?.image || car?.gallery?.[0]?.image || '',
+        customerName: customerDisplayName.trim() || 'Customer',
+        email: user?.email || '',
+        phone: phone.trim() || '',
         slot: date,
         locationType: locationType,
-        address: locationType === 'home' ? 'Customer Doorstep' : 'Nova Motors Hub, Tiruppur'
-      })
+        address: locationType === 'home' ? 'Customer Doorstep' : 'Harsha cars Hub, Tiruppur'
+      }
+      const created = addTestDrive(payload)
       setBookingRef(created.ref)
+      addTestDriveToSupabase(created).catch((err) => {
+        console.warn('Supabase test drive booking sync notice:', err.message)
+      })
     } catch (err) {
       console.error('Error saving booking', err)
       setBookingRef(`NM-${Math.floor(100000 + Math.random() * 900000)}`)
@@ -60,12 +71,12 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: '100%', opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto z-10"
+            className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto z-10"
           >
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition active:scale-90"
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition active:scale-90"
             >
               <X className="w-5 h-5" />
             </button>
@@ -81,11 +92,10 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">Test Drive Confirmed!</h3>
                 <p className="text-xs text-slate-600 max-w-xs mx-auto">
-                  Our Nova Motors concierge will arrive with the <span className="font-semibold text-slate-900">{car.title}</span> at your selected time.
+                  Our Harsha cars concierge will arrive with the <span className="font-semibold text-slate-900">{car.title}</span> at your selected time.
                 </p>
                 <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 inline-block border border-slate-200">
                   Booking Ref: <span className="font-mono font-bold text-slate-900">{bookingRef || 'NM-982103'}</span>
-                  <span className="block text-[10px] text-emerald-600 font-semibold mt-0.5">● Synced with Dealership Admin</span>
                 </div>
               </motion.div>
             ) : (
@@ -94,21 +104,35 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                   <img
                     src={car.image || car.gallery[0]?.image}
                     alt={car.title}
-                    className="w-16 h-12 object-cover rounded-lg border border-slate-100"
+                    className="w-16 h-12 object-cover rounded-xl border border-slate-100"
                   />
                   <div>
-                    <span className="text-[10px] font-semibold tracking-wider uppercase text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Inspected
+                    <span className="text-xs font-semibold tracking-wider uppercase text-slate-900 bg-slate-100 px-2 py-0.5 rounded-xl inline-flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Inspected
                     </span>
-                    <h3 className="font-bold text-slate-900 text-sm">{car.title}</h3>
-                    <p className="text-xs text-slate-500">{car.variant} • {car.priceFormatted}</p>
+                    <h3 className="font-bold text-slate-900 text-sm mt-0.5">{car.title}</h3>
+                    <p className="text-xs text-slate-600">{car.variant} • {car.priceFormatted}</p>
                   </div>
                 </div>
 
                 <h2 className="text-lg font-bold text-slate-900 mb-1">Book Free Test Drive</h2>
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-xs text-slate-600 mb-3">
                   Experience the car at your doorstep or visit our Tiruppur Hub.
                 </p>
+
+                {user && (
+                  <div className="mb-4 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <UserAvatar user={user} className="w-5 h-5" textClassName="text-xs" />
+                      <span className="font-semibold text-slate-900 truncate">
+                        {user.name} ({user.email})
+                      </span>
+                    </div>
+                    <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-xl shrink-0">
+                      Verified
+                    </span>
+                  </div>
+                )}
 
                 <form onSubmit={handleBooking} className="space-y-4">
                   {/* Delivery Type */}
@@ -118,7 +142,7 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                       onClick={() => setLocationType('home')}
                       className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 ${
                         locationType === 'home'
-                          ? 'border-slate-950 bg-slate-950 text-white shadow-sm'
+                          ? 'border-brand bg-brand text-white shadow-sm'
                           : 'border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100'
                       }`}
                     >
@@ -130,7 +154,7 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                       onClick={() => setLocationType('hub')}
                       className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 ${
                         locationType === 'hub'
-                          ? 'border-slate-950 bg-slate-950 text-white shadow-sm'
+                          ? 'border-brand bg-brand text-white shadow-sm'
                           : 'border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100'
                       }`}
                     >
@@ -150,9 +174,9 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                           key={slot}
                           type="button"
                           onClick={() => setDate(slot)}
-                          className={`py-2 px-1 rounded-xl border text-[11px] font-medium text-center transition active:scale-95 ${
+                          className={`py-2 px-1 rounded-xl border text-xs font-medium text-center transition active:scale-95 ${
                             date === slot
-                              ? 'border-slate-950 bg-slate-950 font-bold text-white shadow-2xs'
+                              ? 'border-brand bg-brand font-bold text-white shadow-2xs'
                               : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50'
                           }`}
                         >
@@ -165,20 +189,20 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                   {/* Customer Contact */}
                   <div className="space-y-2">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
                         Your Full Name
                       </label>
                       <input
                         type="text"
                         required
                         placeholder="e.g. Rahul Sharma"
-                        value={name}
+                        value={name !== '' ? name : (user?.name || '')}
                         onChange={(e) => setName(e.target.value)}
                         className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-slate-900 bg-slate-50/50"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
                         Mobile Number
                       </label>
                       <div className="flex">
@@ -201,12 +225,12 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full py-3 rounded-xl bg-slate-950 hover:bg-black text-white font-semibold text-xs tracking-wide shadow-md transition active:scale-[0.98]"
+                      className="w-full py-3 rounded-xl bg-brand hover:bg-brand-hover text-white font-semibold text-xs tracking-wide shadow-md transition active:scale-[0.98]"
                     >
                       Confirm Test Drive Appointment
                     </button>
-                    <p className="text-[10px] text-center text-slate-400 mt-2 flex items-center justify-center gap-1">
-                      <Lock className="w-3 h-3 text-slate-400" />
+                    <p className="text-xs text-center text-slate-500 mt-2 flex items-center justify-center gap-1">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
                       <span>Zero booking fee • Valid driving license required during test drive</span>
                     </p>
                   </div>
