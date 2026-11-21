@@ -167,52 +167,6 @@
   .ui-hero-section {
     background: #ffffff;
   }
-
-  .ui-hero-grid,
-  .ui-hero-shine {
-    --hero-grid: 32px;
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(15, 23, 42, 0.11) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(15, 23, 42, 0.11) 1px, transparent 1px);
-    background-size: var(--hero-grid) var(--hero-grid);
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.15) 78%, transparent 100%);
-  }
-
-  .ui-hero-shine {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.95) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.95) 1px, transparent 1px);
-    opacity: 0.45;
-    background-position: 0 0;
-    animation: ui-hero-shine 18s linear infinite;
-  }
-
-  @keyframes ui-hero-shine {
-    0% {
-      background-position: 0 0;
-      opacity: 0.18;
-    }
-    35% {
-      background-position: 16px -10px;
-      opacity: 0.55;
-    }
-    70% {
-      background-position: -12px 14px;
-      opacity: 0.22;
-    }
-    100% {
-      background-position: 0 0;
-      opacity: 0.18;
-    }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ui-hero-shine {
-    animation: none !important;
-  }
 }
 
 @layer base {

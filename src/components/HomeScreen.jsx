@@ -469,11 +469,6 @@ export default function HomeScreen({
     <div className="w-full bg-white text-slate-900 min-h-screen pb-24 md:pb-16 selection:bg-brand selection:text-white">
       {/* Hero Section Container (1280px container, 12-column grid, 8pt spacing rhythm) */}
       <section className="ui-hero-section relative w-full overflow-hidden border-b border-slate-300/70 pt-6 pb-8 sm:pt-8 lg:pb-12 lg:pt-12">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          <div className="ui-hero-grid" />
-          <div className="ui-hero-shine" />
-        </div>
-
         <div className="relative z-[1] mx-auto max-w-[1280px] px-4 sm:px-6">
           {/* Desktop Two-Column Layout in 12-Column Grid */}
           <div className="hidden lg:grid grid-cols-12 gap-6 items-center">
