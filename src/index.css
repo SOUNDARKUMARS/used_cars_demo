@@ -165,150 +165,51 @@
   }
 
   .ui-hero-section {
-    background: linear-gradient(
-      142deg,
-      #fce9e7 0%,
-      #fff7f6 32%,
-      #ffffff 54%,
-      #fdeceb 78%,
-      #f8dcd9 100%
-    );
+    background: #ffffff;
   }
 
-  .ui-hero-band {
-    position: absolute;
-    inset: -20% -10%;
-    background: linear-gradient(
-      118deg,
-      transparent 16%,
-      rgba(190, 30, 26, 0.085) 38%,
-      rgba(255, 255, 255, 0.7) 50%,
-      rgba(220, 38, 38, 0.08) 64%,
-      transparent 84%
-    );
-    background-size: 200% 200%;
-    animation: ui-hero-band-shift 12s ease-in-out infinite;
-  }
-
-  .ui-hero-mesh {
-    position: absolute;
-    border-radius: 9999px;
-    filter: blur(40px);
-    will-change: transform;
-  }
-
-  .ui-hero-mesh-a {
-    top: -10%;
-    left: -4%;
-    width: min(30vw, 260px);
-    height: min(30vw, 260px);
-    background: radial-gradient(
-      circle,
-      rgba(220, 38, 38, 0.14) 0%,
-      rgba(254, 202, 202, 0.38) 45%,
-      rgba(255, 255, 255, 0) 74%
-    );
-    animation: ui-hero-drift-a 14s ease-in-out infinite;
-  }
-
-  .ui-hero-mesh-b {
-    right: -6%;
-    bottom: -12%;
-    width: min(28vw, 240px);
-    height: min(28vw, 240px);
-    background: radial-gradient(
-      circle,
-      rgba(190, 30, 26, 0.13) 0%,
-      rgba(254, 226, 226, 0.42) 46%,
-      rgba(255, 255, 255, 0) 74%
-    );
-    animation: ui-hero-drift-b 16s ease-in-out infinite;
-  }
-
-  .ui-hero-grid {
+  .ui-hero-grid,
+  .ui-hero-shine {
+    --hero-grid: 32px;
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(190, 30, 26, 0.065) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(190, 30, 26, 0.065) 1px, transparent 1px);
-    background-size: 20px 20px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.22) 72%, transparent 100%);
+      linear-gradient(rgba(15, 23, 42, 0.11) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.11) 1px, transparent 1px);
+    background-size: var(--hero-grid) var(--hero-grid);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.15) 78%, transparent 100%);
   }
 
   .ui-hero-shine {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      110deg,
-      transparent 0%,
-      transparent 34%,
-      rgba(255, 255, 255, 0.85) 48%,
-      rgba(254, 202, 202, 0.35) 55%,
-      transparent 70%
-    );
-    background-size: 240% 100%;
-    animation: ui-hero-shine 8s ease-in-out infinite;
-  }
-
-  .ui-hero-accent-line {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(190, 30, 26, 0.28) 50%,
-      transparent 100%
-    );
-  }
-
-  @keyframes ui-hero-band-shift {
-    0%,
-    100% {
-      background-position: 0% 30%;
-      transform: translateX(-3%);
-    }
-    50% {
-      background-position: 100% 70%;
-      transform: translateX(3%);
-    }
-  }
-
-  @keyframes ui-hero-drift-a {
-    0%,
-    100% {
-      transform: translate(0, 0) scale(1);
-    }
-    50% {
-      transform: translate(10%, 6%) scale(1.1);
-    }
-  }
-
-  @keyframes ui-hero-drift-b {
-    0%,
-    100% {
-      transform: translate(0, 0) scale(1);
-    }
-    50% {
-      transform: translate(-9%, -6%) scale(1.08);
-    }
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.95) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.95) 1px, transparent 1px);
+    opacity: 0.45;
+    background-position: 0 0;
+    animation: ui-hero-shine 18s linear infinite;
   }
 
   @keyframes ui-hero-shine {
     0% {
-      background-position: 140% 0;
+      background-position: 0 0;
+      opacity: 0.18;
+    }
+    35% {
+      background-position: 16px -10px;
+      opacity: 0.55;
+    }
+    70% {
+      background-position: -12px 14px;
+      opacity: 0.22;
     }
     100% {
-      background-position: -40% 0;
+      background-position: 0 0;
+      opacity: 0.18;
     }
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ui-hero-band,
-  .ui-hero-mesh,
   .ui-hero-shine {
     animation: none !important;
   }

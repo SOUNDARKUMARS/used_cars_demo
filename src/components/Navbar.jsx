@@ -71,7 +71,7 @@ export default function Navbar({
   return (
     <>
       <header className={`sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 transition-all duration-200 ${currentScreen === 'detail' ? 'hidden md:block' : ''}`}>
-        <div className="max-w-[1280px] mx-auto px-3 sm:px-6 min-h-[5.25rem] sm:h-[5.5rem] flex items-center justify-between gap-2">
+        <div className="max-w-[1280px] mx-auto px-3 sm:px-6 min-h-[4.25rem] sm:h-[4.5rem] flex items-center justify-between gap-2">
           {/* Brand Logo & Certified Pill (Matches Reference Mockup) */}
           <div className="flex min-w-0 flex-1 items-center sm:flex-none sm:mr-4 lg:mr-8">
             <button
@@ -81,7 +81,7 @@ export default function Navbar({
               aria-label="Harsha cars home"
             >
               <BrandLogo
-                imgClassName="h-[3.75rem] sm:h-16 w-auto max-w-full object-contain object-left"
+                imgClassName="h-11 sm:h-12 w-auto max-w-full object-contain object-left"
                 className="group-hover:opacity-90 transition-opacity"
               />
             </button>

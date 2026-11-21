@@ -470,12 +470,8 @@ export default function HomeScreen({
       {/* Hero Section Container (1280px container, 12-column grid, 8pt spacing rhythm) */}
       <section className="ui-hero-section relative w-full overflow-hidden border-b border-slate-300/70 pt-6 pb-8 sm:pt-8 lg:pb-12 lg:pt-12">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          <div className="ui-hero-band" />
-          <div className="ui-hero-mesh ui-hero-mesh-a" />
-          <div className="ui-hero-mesh ui-hero-mesh-b" />
           <div className="ui-hero-grid" />
           <div className="ui-hero-shine" />
-          <div className="ui-hero-accent-line" />
         </div>
 
         <div className="relative z-[1] mx-auto max-w-[1280px] px-4 sm:px-6">
