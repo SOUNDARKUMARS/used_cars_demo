@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "@react-oauth/google": "^0.13.5",
     "@supabase/supabase-js": "^2.117.3",
+    "ai": "^7.0.179",
     "framer-motion": "^14.0.0",
     "lucide-react": "^1.52.0",
     "qrcode.react": "^4.2.0",

@@ -19,7 +19,11 @@ import {
   fetchDraftsFromSupabase,
   fetchRemindersFromSupabase,
   sendMatchingCarEmails,
+  updateCarInSupabase,
+  fetchAiThumbnailQuota,
+  consumeAiThumbnailQuota,
 } from '../lib/supabase'
+import { generateStudioThumbnail } from '../lib/studioThumbnail'
 import BrandSelector from './BrandSelector'
 import CustomSelect from './CustomSelect'
 import { getBrandByName } from '../data/brandsData'
@@ -280,6 +284,9 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
 
   // Uploaded Photos list
   const [photos, setPhotos] = useState(() => formatGalleryToPhotos(sourceVehicle?.gallery))
+  const [thumbQuota, setThumbQuota] = useState({ used: 0, limit: 200 })
+  const [thumbQuotaError, setThumbQuotaError] = useState('')
+  const [generatingThumb, setGeneratingThumb] = useState(false)
   const [isProcessingPhotos] = useState(false)
   const [activePreviewPhoto, setActivePreviewPhoto] = useState(null)
 
@@ -392,6 +399,76 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
 
   // Cover photo (primary cover photo uploaded by user)
   const primaryCoverPhoto = photos.find((p) => p.isCover) || photos[0]
+
+  useEffect(() => {
+    let active = true
+    fetchAiThumbnailQuota()
+      .then((quota) => {
+        if (active) setThumbQuota(quota)
+      })
+      .catch((err) => {
+        if (active) setThumbQuotaError(err.message || 'Thumbnail allowance is unavailable.')
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const generateThumbnail = async () => {
+    const exterior = photos.filter((photo) => photo.category === 'exterior' && photo.dataUrl).slice(0, 3)
+    if (!exterior.length) {
+      showToast?.('Upload an exterior photo first.', 'warning')
+      return
+    }
+    if (thumbQuota.used >= thumbQuota.limit) {
+      showToast?.('The monthly limit of 200 thumbnails has been used.', 'warning')
+      return
+    }
+
+    setGeneratingThumb(true)
+    try {
+      const dataUrl = await generateStudioThumbnail(exterior.map((photo) => photo.dataUrl))
+      const coverIndex = Math.max(
+        0,
+        photos.findIndex((photo) => photo.isCover)
+      )
+      const nextPhotos = photos.map((photo, index) => ({
+        ...photo,
+        isCover: index === coverIndex,
+        ...(index === coverIndex
+          ? { dataUrl, tag: 'Studio thumbnail', name: 'Studio thumbnail' }
+          : {}),
+      }))
+      setPhotos(nextPhotos)
+
+      const gallery = nextPhotos.map((photo, index) => ({
+        id: index + 1,
+        label: photo.tag || `Photo ${index + 1}`,
+        category: photo.category || 'exterior',
+        image: photo.dataUrl,
+        thumb: photo.dataUrl,
+        isCover: Boolean(photo.isCover),
+      }))
+
+      if (sourceVehicle?.id) {
+        await updateCarInSupabase(sourceVehicle.id, {
+          image: dataUrl,
+          cutoutImage: dataUrl,
+          detailHeroImage: dataUrl,
+          gallery,
+        })
+      }
+
+      const quota = await consumeAiThumbnailQuota()
+      setThumbQuota(quota)
+      setThumbQuotaError('')
+      showToast?.('Studio thumbnail is set as the listing image.')
+    } catch (err) {
+      showToast?.(err?.message || 'The thumbnail could not be generated.', 'warning')
+    } finally {
+      setGeneratingThumb(false)
+    }
+  }
 
   // Photo categories status & readiness
   const categoryStats = useMemo(() => {
@@ -2014,6 +2091,39 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
             </div>
 
             <div className="card-body p-3 p-md-4">
+              <div className="border rounded-3 p-3 mb-4 bg-white">
+                <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                  <div>
+                    <div className="fw-semibold" style={{ fontSize: '14px' }}>Generate thumbnail</div>
+                    <div className="text-secondary" style={{ fontSize: '12px' }}>
+                      Studio photo from the uploaded car. It replaces the cover image.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-dark"
+                    disabled={generatingThumb || !photos.some((photo) => photo.category === 'exterior' && photo.dataUrl) || thumbQuota.used >= thumbQuota.limit}
+                    onClick={generateThumbnail}
+                  >
+                    {generatingThumb ? 'Generating' : 'Generate thumbnail'}
+                  </button>
+                </div>
+                <div className="mt-3">
+                  <div className="d-flex justify-content-between text-secondary mb-1" style={{ fontSize: '12px' }}>
+                    <span>This month</span>
+                    <span>{thumbQuota.used} / {thumbQuota.limit}</span>
+                  </div>
+                  <div className="progress" style={{ height: '6px', backgroundColor: '#e4e4e7' }}>
+                    <div
+                      className="progress-bar bg-dark"
+                      style={{ width: `${Math.min(100, (thumbQuota.used / thumbQuota.limit) * 100)}%` }}
+                    />
+                  </div>
+                  {thumbQuotaError ? (
+                    <div className="text-danger mt-2" style={{ fontSize: '12px' }}>{thumbQuotaError}</div>
+                  ) : null}
+                </div>
+              </div>
               <CategorizedPhotoUploader
                 photos={photos}
                 onPhotosChange={setPhotos}

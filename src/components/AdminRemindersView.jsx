@@ -52,9 +52,22 @@ export default function AdminRemindersView({
     async function syncReminders() {
       try {
         const cloudReminders = await fetchRemindersFromSupabase()
-        if (isMounted && Array.isArray(cloudReminders) && cloudReminders.length > 0) {
-          setReminders(cloudReminders)
-          saveStoredReminders(cloudReminders)
+        const localReminders = getStoredReminders()
+        const saved = Array.isArray(cloudReminders) ? cloudReminders : []
+        const savedIds = new Set(saved.map((reminder) => reminder.id))
+        const pending = localReminders.filter((reminder) => reminder?.id && !savedIds.has(reminder.id))
+        const uploaded = []
+        for (const reminder of pending) {
+          try {
+            uploaded.push(await addReminderToSupabase(reminder))
+          } catch (err) {
+            console.warn('Notice saving a local reminder:', err.message)
+          }
+        }
+        if (isMounted) {
+          const next = [...uploaded, ...saved]
+          setReminders(next)
+          saveStoredReminders(next)
         }
       } catch (err) {
         console.warn('Notice syncing reminders from cloud:', err.message)
@@ -584,11 +597,9 @@ function AdminAddReminderModal({ isOpen, onClose, onSuccess }) {
     }
 
     try {
-      addStoredReminder(payload)
-      addReminderToSupabase(payload).catch((e) =>
-        console.warn('Notice saving reminder to Supabase:', e.message)
-      )
-      onSuccess(payload)
+      const saved = await addReminderToSupabase(payload)
+      addStoredReminder(saved)
+      onSuccess(saved)
     } catch (err) {
       console.error('Failed creating reminder:', err)
       alert('Could not save reminder')

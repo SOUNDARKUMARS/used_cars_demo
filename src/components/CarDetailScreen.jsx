@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft,
@@ -69,7 +69,7 @@ export const PHOTO_CATEGORY_CONFIG = {
   },
 }
 
-export const CATEGORY_ORDER = ['interior', 'cabin', 'mechanical', 'exterior']
+export const CATEGORY_ORDER = ['exterior', 'interior', 'cabin', 'mechanical']
 
 function CarEmiOffer({ car }) {
   const offer = resolveCarEmi(car)
@@ -202,10 +202,18 @@ export default function CarDetailScreen({
     return counts
   }, [normalizedGallery])
 
-  // Order gallery photos: starts with interior -> cabin -> mechanical -> exterior
+  // Listing thumbnail first, then exterior, interior, cabin, and mechanical.
   const orderedGallery = useMemo(() => {
+    const listingImage = car?.image || ''
     const copy = [...normalizedGallery]
     copy.sort((a, b) => {
+      const thumbRank = (item) => {
+        if (listingImage && item.image === listingImage) return 0
+        if (item.isCover) return 1
+        return 2
+      }
+      const thumbDiff = thumbRank(a) - thumbRank(b)
+      if (thumbDiff !== 0) return thumbDiff
       const orderA = CATEGORY_ORDER.indexOf(a.category)
       const orderB = CATEGORY_ORDER.indexOf(b.category)
       const rankA = orderA === -1 ? 99 : orderA
@@ -213,7 +221,7 @@ export default function CarDetailScreen({
       return rankA - rankB
     })
     return copy
-  }, [normalizedGallery])
+  }, [normalizedGallery, car?.image])
 
   // Available Category Tabs: Only display actual categories that contain photos (NO "All Photos")
   const availableCategories = useMemo(() => {
@@ -236,12 +244,15 @@ export default function CarDetailScreen({
   })
 
   const currentPhoto = orderedGallery[activePhotoIndex] || orderedGallery[0] || null
-  const activeCategory = currentPhoto?.category || availableCategories[0]?.id || 'interior'
+  const activeCategory = currentPhoto?.category || availableCategories[0]?.id || 'exterior'
 
   // Pan gesture & horizontal swipe gallery state
   const galleryScrollRef = useRef(null)
   const thumbnailsScrollRef = useRef(null)
   const categoryTabsRef = useRef(null)
+  const studioStageRef = useRef(null)
+  const studioTrackRef = useRef(null)
+  const studioDragRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollStart, setScrollStart] = useState(0)
@@ -314,6 +325,15 @@ export default function CarDetailScreen({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isFullscreenOpen, orderedGallery.length])
 
+  // After a swipe commits, the track's middle slide is the new photo.
+  // Reset before paint so the strip does not jump to the wrong frame.
+  useLayoutEffect(() => {
+    const track = studioTrackRef.current
+    if (!track || studioDragRef.current) return
+    track.style.transition = 'none'
+    track.style.transform = 'translateX(-33.333%)'
+  }, [activePhotoIndex, isFullscreenOpen])
+
   if (!car) {
     return (
       <div className="w-full min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
@@ -372,6 +392,71 @@ export default function CarDetailScreen({
       setHasMoved(true)
     }
     galleryScrollRef.current.scrollLeft = scrollStart - walk
+  }
+
+  const onStudioPointerDown = (e) => {
+    if (e.button != null && e.button !== 0) return
+    if (e.target.closest('button')) return
+    const stage = studioStageRef.current
+    const track = studioTrackRef.current
+    if (!stage || !track) return
+    track.style.transition = 'none'
+    studioDragRef.current = { id: e.pointerId, x: e.clientX, t: Date.now(), dx: 0 }
+    try {
+      stage.setPointerCapture(e.pointerId)
+    } catch {
+      // Pointer capture is unavailable for this event. Move events still update the strip.
+    }
+  }
+
+  const onStudioPointerMove = (e) => {
+    const drag = studioDragRef.current
+    if (!drag || drag.id !== e.pointerId) return
+    const stage = studioStageRef.current
+    const track = studioTrackRef.current
+    if (!stage || !track) return
+    let dx = e.clientX - drag.x
+    const last = orderedGallery.length - 1
+    if ((activePhotoIndex <= 0 && dx > 0) || (activePhotoIndex >= last && dx < 0)) {
+      dx *= 0.32
+    }
+    drag.dx = dx
+    track.style.transform = `translateX(calc(-33.333% + ${dx}px))`
+  }
+
+  const onStudioPointerUp = (e) => {
+    const drag = studioDragRef.current
+    if (!drag || drag.id !== e.pointerId) return
+    studioDragRef.current = null
+    const stage = studioStageRef.current
+    const track = studioTrackRef.current
+    if (!stage || !track) return
+    const width = stage.clientWidth || 1
+    const dx = drag.dx || 0
+    const velocity = dx / Math.max(1, Date.now() - drag.t)
+    const last = orderedGallery.length - 1
+    const commitNext = activePhotoIndex < last && (dx < -width * 0.18 || velocity < -0.45)
+    const commitPrev = activePhotoIndex > 0 && (dx > width * 0.18 || velocity > 0.45)
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion) {
+      track.style.transition = 'none'
+      track.style.transform = 'translateX(-33.333%)'
+      if (commitNext) setActivePhotoIndex((prev) => Math.min(last, prev + 1))
+      else if (commitPrev) setActivePhotoIndex((prev) => Math.max(0, prev - 1))
+      return
+    }
+    const shift = commitNext ? -66.666 : commitPrev ? 0 : -33.333
+    track.style.transition = 'transform 200ms cubic-bezier(0.23, 1, 0.32, 1)'
+    track.style.transform = `translateX(${shift}%)`
+    if (!commitNext && !commitPrev) return
+    const onDone = () => {
+      track.removeEventListener('transitionend', onDone)
+      setActivePhotoIndex((prev) => {
+        if (commitNext) return Math.min(last, prev + 1)
+        return Math.max(0, prev - 1)
+      })
+    }
+    track.addEventListener('transitionend', onDone)
   }
 
   const handleMouseUp = () => {
@@ -582,12 +667,11 @@ export default function CarDetailScreen({
         {/* 2-Column Responsive Layout on Desktop, 1-Column on Mobile */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column (Gallery & In-Depth Details) */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-            {/* Main Photo Gallery with Pan Gesture & Continuous Auto-Updating Category Navigation */}
-            <div className="bg-white rounded-2xl p-3 sm:p-5 border border-slate-200/80 shadow-xs">
-              {/* Category Navigation Bar (Clean Themed Dual-Tone, Auto-Updates as User Scrolls) */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+            {/* Gallery, thumbs, and title share one block. The photo uses the column width. */}
+            <div>
               {availableCategories.length > 1 && (
-                <div className="flex items-center justify-between gap-3 mb-3 pb-2 border-b border-slate-100">
+                <div className="mb-2 flex items-center justify-between gap-2">
                   <div
                     ref={categoryTabsRef}
                     className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none py-0.5"
@@ -634,8 +718,7 @@ export default function CarDetailScreen({
                 </div>
               )}
 
-              {/* Hero Image Slider Container */}
-              <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] bg-slate-100 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm group select-none">
+              <div className="group relative -mx-4 aspect-[16/10] w-[calc(100%+2rem)] select-none overflow-hidden bg-slate-100 sm:-mx-6 sm:aspect-[16/9] sm:w-[calc(100%+3rem)] lg:mx-0 lg:w-full lg:rounded-2xl">
                 {/* Horizontal Scroll Snap Track with Pan Drag */}
                 <div
                   ref={galleryScrollRef}
@@ -731,11 +814,10 @@ export default function CarDetailScreen({
                 </div>
               </div>
 
-              {/* Interactive Responsive Thumbnails with Clean Unobstructed Photos */}
-              <div className="relative mt-2">
+              <div className="relative -mx-4 mt-1.5 w-[calc(100%+2rem)] sm:-mx-6 sm:w-[calc(100%+3rem)] lg:mx-0 lg:w-full">
                 <div
                   ref={thumbnailsScrollRef}
-                  className="flex items-center gap-2 sm:gap-3 overflow-x-auto py-2.5 px-1 scrollbar-none snap-x"
+                  className="scrollbar-none flex snap-x items-center gap-2 overflow-x-auto px-4 py-1.5 sm:gap-2.5 lg:px-0"
                 >
                   {orderedGallery.map((item, idx) => {
                     const isSelected = activePhotoIndex === idx
@@ -762,24 +844,22 @@ export default function CarDetailScreen({
                   })}
                 </div>
               </div>
-            </div>
 
-            {/* Title & Price Section (Rendered on mobile, matches Image 2) */}
-            <div className="md:hidden bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-              <div className="flex items-baseline justify-between gap-2">
-                <h1 className="text-lg font-bold text-slate-900 tracking-tight truncate">
-                  {car.title}
-                </h1>
-                <p className="text-lg font-bold text-slate-900 tracking-tight font-mono shrink-0 whitespace-nowrap">
-                  {car.priceFormatted}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 mt-0.5">
-                <p className="text-xs text-slate-500 font-medium truncate">{car.variant}</p>
-                <p className="text-xs text-slate-600 font-medium shrink-0 whitespace-nowrap">
-                  {resolveCarEmi(car).label}
-                </p>
+              <div className="pt-2 lg:hidden">
+                <div className="flex items-start justify-between gap-3">
+                  <h1 className="min-w-0 text-lg font-bold leading-snug tracking-tight text-slate-900">
+                    {car.title}
+                  </h1>
+                  <p className="shrink-0 whitespace-nowrap font-mono text-lg font-bold tracking-tight text-slate-900">
+                    {car.priceFormatted}
+                  </p>
+                </div>
+                <div className="mt-0.5 flex items-center justify-between gap-3">
+                  <p className="min-w-0 truncate text-xs font-medium text-slate-500">{car.variant}</p>
+                  <p className="shrink-0 whitespace-nowrap text-xs font-medium text-slate-600">
+                    {resolveCarEmi(car).label}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -864,7 +944,7 @@ export default function CarDetailScreen({
                 </button>
               </div>
 
-              <div className="grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 gap-x-4">
                 {(car.keyFeatures || []).map((feat, idx) => {
                   const featObj =
                     typeof feat === 'string'
@@ -876,25 +956,24 @@ export default function CarDetailScreen({
                   return (
                     <div
                       key={featObj.id || idx}
-                      className="ui-inset-tile flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-2.5 text-center transition hover:bg-slate-100 sm:gap-2 sm:p-3"
+                      className="flex min-h-12 items-center gap-2.5 py-2"
                     >
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
                         {featObj.iconUrl ? (
                           <img
                             src={featObj.iconUrl}
-                            alt={displayName}
-                            className="w-6 h-6 sm:w-7 sm:h-7 object-contain"
+                            alt=""
+                            className="h-4 w-4 object-contain"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none'
                             }}
                           />
-                        ) : null}
-                        <span className={featObj.iconUrl ? 'hidden' : 'inline-flex'}>
-                          {featureIconMap[iconName] ||
-                            renderFeatureIcon(iconName, 'w-5 h-5 text-slate-800')}
-                        </span>
-                      </div>
-                      <span className="text-xs font-semibold text-slate-800 leading-tight">
+                        ) : (
+                          featureIconMap[iconName] ||
+                          renderFeatureIcon(iconName, 'h-4 w-4 text-slate-700')
+                        )}
+                      </span>
+                      <span className="min-w-0 text-[13px] font-medium leading-snug text-slate-800 text-balance">
                         {displayName}
                       </span>
                     </div>
@@ -1080,25 +1159,28 @@ export default function CarDetailScreen({
             className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 select-none"
           >
             {/* Lightbox Header */}
-            <div className="flex items-center justify-between gap-4 w-full max-w-6xl mx-auto text-white">
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
-                  <span>{car.title}</span>
-                  <span className="text-white/40">•</span>
-                  <span className="text-slate-400 font-normal text-xs sm:text-sm">{car.variant}</span>
+            <div className="flex w-full max-w-6xl items-center justify-between gap-3 mx-auto text-white">
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-bold tracking-tight text-white sm:text-base">
+                  {car.title}
                 </h3>
+                {car.variant && !String(car.title || '').toLowerCase().includes(String(car.variant).toLowerCase()) && (
+                  <p className="truncate text-xs font-normal text-white/55">{car.variant}</p>
+                )}
                 {currentPhoto && (
-                  <div className="flex items-center gap-1.5 text-xs text-white/80 font-medium mt-0.5">
-                    {React.createElement(currentPhoto.categoryIcon || Car, { className: 'w-3.5 h-3.5 text-white/80' })}
-                    <span>{currentPhoto.categoryTitle}</span>
-                    <span className="text-white/30">•</span>
-                    <span className="text-slate-300">{currentPhoto.label}</span>
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs font-medium text-white/80">
+                    {React.createElement(currentPhoto.categoryIcon || Car, { className: 'h-3.5 w-3.5 shrink-0 text-white/80' })}
+                    <span className="truncate">
+                      {currentPhoto.categoryTitle}
+                      <span className="text-white/30"> • </span>
+                      <span className="text-white/60">{currentPhoto.label}</span>
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="text-xs font-semibold text-white/80 bg-white/10 px-3 py-1.5 rounded-full">
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="whitespace-nowrap rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
                   {activePhotoIndex + 1} / {orderedGallery.length}
                 </div>
                 <button
@@ -1113,7 +1195,35 @@ export default function CarDetailScreen({
             </div>
 
             {/* Lightbox Main Image & Prev/Next */}
-            <div className="relative flex-1 flex items-center justify-center my-4 max-w-6xl w-full mx-auto overflow-hidden">
+            <div
+              ref={studioStageRef}
+              onPointerDown={onStudioPointerDown}
+              onPointerMove={onStudioPointerMove}
+              onPointerUp={onStudioPointerUp}
+              onPointerCancel={onStudioPointerUp}
+              className="relative my-4 flex w-full max-w-6xl flex-1 cursor-grab touch-none items-center overflow-hidden active:cursor-grabbing"
+            >
+              <div
+                ref={studioTrackRef}
+                className="flex h-full w-[300%] shrink-0"
+                style={{ transform: 'translateX(-33.333%)' }}
+              >
+                {[-1, 0, 1].map((offset) => {
+                  const photo = orderedGallery[activePhotoIndex + offset]
+                  return (
+                    <div key={offset} className="flex h-full w-1/3 shrink-0 items-center justify-center">
+                      {photo ? (
+                        <img
+                          src={photo.image}
+                          alt={photo.label}
+                          draggable={false}
+                          className="max-h-[75vh] max-w-full select-none rounded-xl object-contain"
+                        />
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
               {activePhotoIndex > 0 && (
                 <button
                   type="button"
@@ -1142,24 +1252,13 @@ export default function CarDetailScreen({
                 </button>
               )}
 
-              {currentPhoto && (
-                <motion.img
-                  key={currentPhoto.id || activePhotoIndex}
-                  src={currentPhoto.image}
-                  alt={currentPhoto.label}
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="max-h-[75vh] max-w-full object-contain rounded-xl select-none"
-                />
-              )}
             </div>
 
             {/* Lightbox Bottom Strip: Categories & Thumbnails */}
             <div className="w-full max-w-4xl mx-auto space-y-3">
               {/* Categories Bar in Modal */}
-              <div className="flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+              <div className="scrollbar-none overflow-x-auto pb-1">
+                <div className="mx-auto flex w-max min-w-full items-center justify-center gap-1.5 px-1">
                 {availableCategories.map((tab) => {
                   const TabIcon = tab.icon
                   const isActive = activeCategory === tab.id
@@ -1186,10 +1285,12 @@ export default function CarDetailScreen({
                     </button>
                   )
                 })}
+                </div>
               </div>
 
               {/* Thumbnails in Modal */}
-              <div className="flex items-center justify-center gap-2 overflow-x-auto py-2 px-1 scrollbar-none">
+              <div className="scrollbar-none overflow-x-auto py-2">
+                <div className="mx-auto flex w-max min-w-full items-center justify-center gap-2 px-1">
                 {orderedGallery.map((item, idx) => {
                   const isSelected = activePhotoIndex === idx
                   return (
@@ -1211,6 +1312,7 @@ export default function CarDetailScreen({
                     </button>
                   )
                 })}
+                </div>
               </div>
             </div>
           </motion.div>

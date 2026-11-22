@@ -1375,7 +1375,7 @@ export default function HomeScreen({
                 <img
                   src={car.image || car.gallery[0]?.image}
                   alt={car.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-full object-contain object-center"
                 />
 
                 {/* Top-Left Inspected Pill */}

@@ -356,8 +356,7 @@ export function mapReminderFromDb(row) {
 }
 
 export function mapReminderToDb(rem) {
-  return {
-    id: rem.id,
+  const row = {
     customer_name: rem.customerName || rem.name || 'Valued Customer',
     email: rem.email,
     phone: rem.phone || null,
@@ -365,8 +364,8 @@ export function mapReminderToDb(rem) {
     model: rem.model || 'Any',
     min_year: rem.minYear ? Number(rem.minYear) : null,
     max_year: rem.maxYear ? Number(rem.maxYear) : null,
-    min_price: rem.minPrice ? Number(rem.minPrice) : null,
-    max_price: rem.maxPrice ? Number(rem.maxPrice) : null,
+    min_price: rem.minPrice === 0 || rem.minPrice ? Number(rem.minPrice) : null,
+    max_price: rem.maxPrice === 0 || rem.maxPrice ? Number(rem.maxPrice) : null,
     fuel_type: rem.fuelType || rem.fuel || 'Any',
     transmission: rem.transmission || 'Any',
     body_type: rem.bodyType || 'Any',
@@ -376,6 +375,10 @@ export function mapReminderToDb(rem) {
     notification_count: Number(rem.notificationCount) || 0,
     last_notified_at: rem.lastNotifiedAt || null,
   }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rem.id || '')) {
+    row.id = rem.id
+  }
+  return row
 }
 
 // ==========================================
@@ -530,6 +533,8 @@ export async function updateCarInSupabase(id, updates) {
   if (updates.transmission !== undefined) dbUpdates.transmission = updates.transmission
   if (updates.bodyType !== undefined) dbUpdates.body_type = updates.bodyType
   if (updates.image !== undefined) dbUpdates.image = updates.image
+  if (updates.cutoutImage !== undefined) dbUpdates.cutout_image = updates.cutoutImage
+  if (updates.detailHeroImage !== undefined) dbUpdates.detail_hero_image = updates.detailHeroImage
   if (updates.location !== undefined) dbUpdates.location = updates.location
   if (updates.color !== undefined) dbUpdates.color = updates.color
   if (updates.keyFeatures !== undefined) dbUpdates.key_features = updates.keyFeatures
@@ -854,15 +859,10 @@ export async function fetchRemindersFromSupabase() {
 }
 
 export async function addReminderToSupabase(reminder) {
-  try {
-    const payload = mapReminderToDb(reminder)
-    const { data, error } = await supabase.from('car_reminders').insert([payload]).select().single()
-    if (error) throw error
-    return mapReminderFromDb(data)
-  } catch (err) {
-    console.warn('Notice adding car reminder to Supabase (saved local):', err.message)
-    return null
-  }
+  const payload = mapReminderToDb(reminder)
+  const { data, error } = await supabase.from('car_reminders').insert([payload]).select().single()
+  if (error) throw error
+  return mapReminderFromDb(data)
 }
 
 export async function updateReminderInSupabase(id, updates) {
@@ -1120,6 +1120,50 @@ export async function sendMatchingCarEmails({ reminders = [], car, siteUrl }) {
   }
 
   return { sent, failed, results }
+}
+
+const THUMBNAIL_QUOTA_ID = 'site'
+const THUMBNAIL_MONTHLY_LIMIT = 200
+
+function currentQuotaPeriod() {
+  return new Date().toISOString().slice(0, 7)
+}
+
+export async function fetchAiThumbnailQuota() {
+  const period = currentQuotaPeriod()
+  const { data, error } = await supabase
+    .from('ai_thumbnail_quota')
+    .select('period, used, monthly_limit')
+    .eq('id', THUMBNAIL_QUOTA_ID)
+    .maybeSingle()
+  if (error) throw error
+  if (!data || data.period !== period) {
+    return { period, used: 0, limit: data?.monthly_limit || THUMBNAIL_MONTHLY_LIMIT }
+  }
+  return { period: data.period, used: data.used, limit: data.monthly_limit || THUMBNAIL_MONTHLY_LIMIT }
+}
+
+export async function consumeAiThumbnailQuota() {
+  const period = currentQuotaPeriod()
+  const current = await fetchAiThumbnailQuota()
+  if (current.used >= current.limit) {
+    const error = new Error('The monthly thumbnail limit of 200 has been used.')
+    error.code = 'quota'
+    throw error
+  }
+  const used = current.used + 1
+  const { error } = await supabase.from('ai_thumbnail_quota').upsert(
+    {
+      id: THUMBNAIL_QUOTA_ID,
+      period,
+      used,
+      monthly_limit: current.limit,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'id' }
+  )
+  if (error) throw error
+  return { period, used, limit: current.limit }
 }
 
 // Re-export analytics helpers

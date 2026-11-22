@@ -969,19 +969,21 @@ export const INITIAL_REMINDERS = [
   },
 ]
 
+const PLACEHOLDER_REMINDER_IDS = new Set(INITIAL_REMINDERS.map((reminder) => reminder.id))
+
 export function getStoredReminders() {
   try {
     const raw = localStorage.getItem(REMINDERS_STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed
+      if (Array.isArray(parsed)) {
+        return parsed.filter((reminder) => reminder && !PLACEHOLDER_REMINDER_IDS.has(reminder.id))
       }
     }
   } catch (err) {
     console.error('Failed reading car reminders from localStorage', err)
   }
-  return INITIAL_REMINDERS
+  return []
 }
 
 export function saveStoredReminders(reminders) {

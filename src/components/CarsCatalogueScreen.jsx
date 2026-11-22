@@ -339,7 +339,7 @@ export default function CarsCatalogueScreen({
                 <img
                   src={car.image || car.gallery[0]?.image}
                   alt={car.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-full object-contain object-center"
                 />
                 <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white text-xs font-medium px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-md">
                   <ShieldCheck className="w-3.5 h-3.5 text-white" />

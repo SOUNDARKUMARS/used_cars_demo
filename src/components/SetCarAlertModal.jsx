@@ -156,17 +156,11 @@ export default function SetCarAlertModal({
     }
 
     try {
-      // 1. Store in localStorage cache
-      addStoredReminder(reminderPayload)
-
-      // 2. Persist to Supabase database (non-blocking fallback)
-      addReminderToSupabase(reminderPayload).catch((err) =>
-        console.warn('Notice saving reminder to Supabase cloud:', err.message)
-      )
-
+      const saved = await addReminderToSupabase(reminderPayload)
+      addStoredReminder(saved)
       setIsSubmitted(true)
       if (onSuccess) {
-        onSuccess(reminderPayload)
+        onSuccess(saved)
       }
     } catch (err) {
       console.error('Failed to create vehicle reminder:', err)
