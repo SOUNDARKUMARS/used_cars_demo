@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
+import { getReplicateToken, getStudioReferenceDataUrl, REALISTIC_STUDIO_PROMPT } from "../lib/studioThumbnail";
 
-const REPLICATE_TOKEN = import.meta.env.VITE_REPLICATE_API_TOKEN;
 const INR_PER_USD = 92.67;
 const MODELS = [
   { id: "openai/gpt-image-2.5-flare", label: "GPT Image 2.5 Flare" },
@@ -19,14 +19,7 @@ function formatCost(quality) {
   return { usd: `$${usd.toFixed(3)}`, inr: `₹${inr.toFixed(2)}` };
 }
 
-const PROMPT = [
-  "The two uploaded photos are the same car. Use both as reference.",
-  "Make one photorealistic automotive studio photo of that exact car.",
-  "Keep the vehicle identical: same body, paint colour, wheels, badges, lights, mirrors, glass, number plate and proportions.",
-  "Do not redesign, restyle, add parts, or change the car in any way.",
-  "Replace only the surroundings with a real dealership studio: seamless light grey cyclorama, soft even lighting, a faint floor reflection and a natural contact shadow under the tyres.",
-  "No people, no other cars, no text, no watermark.",
-].join(" ");
+const PROMPT = REALISTIC_STUDIO_PROMPT;
 
 function readDataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -42,18 +35,23 @@ function replicatePath(url) {
 }
 
 async function runStudio(modelId, dataUrls, quality, signal) {
+  const token = getReplicateToken();
+  if (!token) throw new Error("Missing VITE_REPLICATE_API_TOKEN in environment.");
+  const bgReference = await getStudioReferenceDataUrl().catch(() => null);
+  const inputImages = bgReference ? [...dataUrls, bgReference] : dataUrls;
+
   const response = await fetch(`/replicate-api/v1/models/${modelId}/predictions`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${REPLICATE_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       Prefer: "wait=60",
     },
     body: JSON.stringify({
       input: {
         prompt: PROMPT,
-        input_images: dataUrls,
-        aspect_ratio: "auto",
+        input_images: inputImages,
+        aspect_ratio: "16:9",
         quality,
         background: "opaque",
         output_format: "jpeg",
@@ -83,7 +81,7 @@ async function runStudio(modelId, dataUrls, quality, signal) {
       );
     });
     const poll = await fetch(replicatePath(prediction.urls.get), {
-      headers: { Authorization: `Bearer ${REPLICATE_TOKEN}` },
+      headers: { Authorization: `Bearer ${token}` },
       signal,
     });
     prediction = await poll.json().catch(() => null);

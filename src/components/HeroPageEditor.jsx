@@ -3,7 +3,13 @@ import {
   DEFAULT_HERO_CONTENT,
   fetchHeroContentFromSupabase,
   saveHeroContentToSupabase,
+  getCachedHeroContent,
 } from '../lib/supabase'
+import {
+  getVehicleThumbnail,
+  formatCreationDate,
+  formatCreationTime,
+} from '../data/carStorage'
 
 function isHeroCandidate(car) {
   if (!car) return false
@@ -13,11 +19,12 @@ function isHeroCandidate(car) {
 }
 
 export default function HeroPageEditor({ cars = [], onToggleHero }) {
-  const [form, setForm] = useState(DEFAULT_HERO_CONTENT)
+  const [form, setForm] = useState(() => getCachedHeroContent() || DEFAULT_HERO_CONTENT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
   const [query, setQuery] = useState('')
+  const [heroOverrides, setHeroOverrides] = useState({})
 
   useEffect(() => {
     let active = true
@@ -41,6 +48,29 @@ export default function HeroPageEditor({ cars = [], onToggleHero }) {
     }
   }, [])
 
+  useEffect(() => {
+    // When parent cars state updates, clear any matching overrides
+    setHeroOverrides((prev) => {
+      const next = { ...prev }
+      let changed = false
+      for (const [id, val] of Object.entries(prev)) {
+        const matchingCar = cars.find((c) => String(c.id) === String(id))
+        if (matchingCar && Boolean(matchingCar.showInHero) === val) {
+          delete next[id]
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [cars])
+
+  const handleToggle = (car) => {
+    const current = heroOverrides[car.id] !== undefined ? heroOverrides[car.id] : Boolean(car.showInHero)
+    const next = !current
+    setHeroOverrides((prev) => ({ ...prev, [car.id]: next }))
+    if (onToggleHero) onToggleHero(car, next)
+  }
+
   const listedCars = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return cars
@@ -50,10 +80,17 @@ export default function HeroPageEditor({ cars = [], onToggleHero }) {
         const haystack = `${car.title || ''} ${car.make || ''} ${car.model || ''} ${car.variant || ''}`.toLowerCase()
         return haystack.includes(needle)
       })
-      .sort((a, b) => Number(b.showInHero) - Number(a.showInHero))
-  }, [cars, query])
+      .sort((a, b) => {
+        const aHero = heroOverrides[a.id] !== undefined ? heroOverrides[a.id] : Boolean(a.showInHero)
+        const bHero = heroOverrides[b.id] !== undefined ? heroOverrides[b.id] : Boolean(b.showInHero)
+        return Number(bHero) - Number(aHero)
+      })
+  }, [cars, query, heroOverrides])
 
-  const markedCount = cars.filter((car) => car.showInHero && car.listingStatus !== 'Sold' && car.listingStatus !== 'Draft' && !car.isDraft).length
+  const markedCount = cars.filter((car) => {
+    const isHero = heroOverrides[car.id] !== undefined ? heroOverrides[car.id] : Boolean(car.showInHero)
+    return isHero && car.listingStatus !== 'Sold' && car.listingStatus !== 'Draft' && !car.isDraft
+  }).length
 
   const setField = (key) => (event) => {
     setForm((prev) => ({ ...prev, [key]: event.target.value }))
@@ -169,8 +206,9 @@ export default function HeroPageEditor({ cars = [], onToggleHero }) {
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th style={{ width: 110 }}>Hero</th>
+                <th style={{ width: 90 }}>Hero</th>
                 <th>Vehicle</th>
+                <th style={{ minWidth: 130 }}>Created</th>
                 <th>Price</th>
                 <th>Status</th>
               </tr>
@@ -178,44 +216,60 @@ export default function HeroPageEditor({ cars = [], onToggleHero }) {
             <tbody>
               {listedCars.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center text-muted py-4">No cars match.</td>
+                  <td colSpan="5" className="text-center text-muted py-4">No cars match.</td>
                 </tr>
               ) : (
-                listedCars.map((car) => (
-                  <tr key={car.id}>
-                    <td>
-                      <div className="form-check form-switch mb-0">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          role="switch"
-                          id={`hero-car-${car.id}`}
-                          checked={Boolean(car.showInHero)}
-                          onChange={() => onToggleHero(car)}
-                          aria-label={`Show ${car.title} on the hero`}
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <div className="d-flex align-items-center gap-2">
-                        <img
-                          src={car.image || '/mock_cars/honda_city_front.jpg'}
-                          alt=""
-                          className="rounded border"
-                          style={{ width: 64, height: 44, objectFit: 'cover' }}
-                        />
-                        <div>
-                          <div className="fw-semibold small">{car.title}</div>
-                          <div className="text-muted" style={{ fontSize: 12 }}>
-                            {car.km} · {car.fuel} · {car.transmission}
+                listedCars.map((car) => {
+                  const isChecked = heroOverrides[car.id] !== undefined ? heroOverrides[car.id] : Boolean(car.showInHero)
+                  return (
+                    <tr key={car.id}>
+                      <td>
+                        <div className="form-check form-switch mb-0">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id={`hero-car-${car.id}`}
+                            checked={isChecked}
+                            onChange={() => handleToggle(car)}
+                            aria-label={`Show ${car.title} on the hero`}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div className="d-flex align-items-center gap-2.5">
+                          <img
+                            src={getVehicleThumbnail(car)}
+                            alt={car.title}
+                            className="rounded border flex-shrink-0"
+                            style={{ width: 68, height: 48, objectFit: 'contain', background: '#f8fafc' }}
+                            onError={(e) => {
+                              e.target.src = '/mock_cars/honda_city_front.jpg'
+                            }}
+                          />
+                          <div style={{ minWidth: 0 }}>
+                            <div className="fw-semibold small text-truncate" style={{ maxWidth: 280 }}>{car.title}</div>
+                            <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 280 }}>
+                              {car.km} · {car.fuel} · {car.transmission}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="small fw-semibold">{car.priceFormatted}</td>
-                    <td className="small">{car.listingStatus || 'Available'}</td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="small text-nowrap">
+                        <div className="fw-semibold text-dark">{formatCreationDate(car.createdAt || car.created_at)}</div>
+                        <div className="text-muted" style={{ fontSize: 11 }}>
+                          {formatCreationTime(car.createdAt || car.created_at)}
+                        </div>
+                      </td>
+                      <td className="small fw-semibold">{car.priceFormatted}</td>
+                      <td className="small">
+                        <span className={`badge rounded-pill ${car.listingStatus === 'Available' || !car.listingStatus ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary'}`}>
+                          {car.listingStatus || 'Available'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>

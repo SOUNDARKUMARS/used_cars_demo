@@ -1,0 +1,157 @@
+-- Test inventory. Safe to run more than once.
+-- Uses photos already in public/mock_cars.
+
+INSERT INTO public.cars (
+  id, make, model, year, variant, title, price, price_formatted, emi, emi_numeric,
+  inspected, inspected_badge, home_inspected_badge, km, km_numeric, fuel, transmission,
+  ownership, location, body_type, color, insurance, rto, image, cutout_image,
+  detail_hero_image, gallery, total_photos, about_summary, about_full, key_features,
+  extended_features, condition_history, dealer_id, dealer, listing_status, is_draft,
+  emi_available, emi_down_payment, emi_interest_rate, emi_tenure_months
+)
+VALUES
+  (
+    'test-hyundai-i10-2020',
+    'Hyundai', 'Grand i10', 2020, 'Nios Sportz 1.2',
+    '2020 Hyundai Grand i10 Nios Sportz',
+    545000, '₹ 5,45,000', 'EMI from ₹ 9,640/mo', 9640,
+    true, 'Inspected & Verified', 'Inspected',
+    '41,200 km', 41200, 'Petrol', 'Manual', '1st Owner',
+    'Tiruppur, Tamil Nadu', 'Hatchback', 'Polar White',
+    'Comprehensive valid till Mar 2026', 'TN-39 (Tiruppur)',
+    '/mock_cars/hyundai_grand_i10_white.jpg',
+    '/mock_cars/hyundai_grand_i10_white.jpg',
+    '/mock_cars/hyundai_grand_i10_white.jpg',
+    '[
+      {"id":"ext-1","label":"Exterior Front","category":"exterior","image":"/mock_cars/hyundai_grand_i10_white.jpg","thumb":"/mock_cars/hyundai_grand_i10_white.jpg"},
+      {"id":"ext-2","label":"Exterior Side","category":"exterior","image":"/mock_cars/hyundai_grand_i10_black.jpg","thumb":"/mock_cars/hyundai_grand_i10_black.jpg"},
+      {"id":"int-1","label":"Dashboard","category":"interior","image":"/mock_cars/honda_city_interior_dashboard.jpg","thumb":"/mock_cars/honda_city_interior_dashboard.jpg"},
+      {"id":"cab-1","label":"Front Seats","category":"cabin","image":"/mock_cars/honda_city_leather_seats.jpg","thumb":"/mock_cars/honda_city_leather_seats.jpg"}
+    ]'::jsonb,
+    4,
+    'Single-owner Grand i10 Nios Sportz with a full Hyundai service book and a clean TN-39 registration.',
+    'Driven 41,200 km. Touchscreen with Android Auto and Apple CarPlay, rear camera, and both keys. No flood or major accident history on the inspection sheet.',
+    '[{"id":"touchscreen","name":"Touchscreen","iconName":"Tv","iconUrl":"/icons/steering-audio.png"},{"id":"reverse-camera","name":"Reverse Camera","iconName":"Video","iconUrl":"/icons/safety-features.png"},{"id":"airbags","name":"Dual Airbags","iconName":"Shield","iconUrl":"/icons/airbags.png"},{"id":"abs-ebd","name":"ABS & EBD","iconName":"Disc","iconUrl":"/icons/abs.png"}]'::jsonb,
+    '[]'::jsonb,
+    '[{"id":"inspected","title":"Inspected","subtitle":"200+ point check","iconName":"ShieldCheck","iconUrl":"/icons/quality-check-140.png","status":"Passed"},{"id":"service","title":"Service History","subtitle":"Available","iconName":"Wrench","iconUrl":"/icons/service-icon.svg","status":"Documented"},{"id":"accident","title":"No Major Accidents","subtitle":"Verified","iconName":"FileText","iconUrl":"/icons/verified-seller.png","status":"Clean"},{"id":"rc","title":"RC Verified","subtitle":"TN RTO","iconName":"FileCheck","iconUrl":"/icons/rc-icon.svg","status":"Active"}]'::jsonb,
+    'nova-tiruppur',
+    '{"name":"Harsha cars Tiruppur","address":"Tiruppur, Tamil Nadu","phone":"+91 94882 12044","whatsapp":"+919488212044","hours":"Mon - Sun: 9:30 AM - 8:30 PM"}'::jsonb,
+    'Available', false, true, 109000, 10.5, 48
+  ),
+  (
+    'test-tata-tiago-2019',
+    'Tata', 'Tiago', 2019, 'XZ 1.2',
+    '2019 Tata Tiago XZ',
+    465000, '₹ 4,65,000', 'EMI from ₹ 8,220/mo', 8220,
+    true, 'Inspected & Verified', 'Inspected',
+    '52,800 km', 52800, 'Petrol', 'Manual', '2nd Owner',
+    'Coimbatore, Tamil Nadu', 'Hatchback', 'Flurry Silver',
+    'Third-party valid till Jan 2026', 'TN-37 (Coimbatore)',
+    '/mock_cars/tata_tiago_silver.jpg',
+    '/mock_cars/tata_tiago_silver.jpg',
+    '/mock_cars/tata_tiago_silver.jpg',
+    '[
+      {"id":"ext-1","label":"Exterior Front","category":"exterior","image":"/mock_cars/tata_tiago_silver.jpg","thumb":"/mock_cars/tata_tiago_silver.jpg"},
+      {"id":"int-1","label":"Dashboard","category":"interior","image":"/mock_cars/honda_city_cockpit.jpg","thumb":"/mock_cars/honda_city_cockpit.jpg"},
+      {"id":"cab-1","label":"Cabin","category":"cabin","image":"/mock_cars/honda_city_leather_seats.jpg","thumb":"/mock_cars/honda_city_leather_seats.jpg"}
+    ]'::jsonb,
+    3,
+    'Tiago XZ with a Harman infotainment system, projector lamps, and a recently replaced clutch.',
+    'Second owner since 2022. Service stamps from a Tata workshop through 48,000 km. Tyres have about 60 percent tread.',
+    '[{"id":"touchscreen","name":"Touchscreen","iconName":"Tv","iconUrl":"/icons/steering-audio.png"},{"id":"airbags","name":"Dual Airbags","iconName":"Shield","iconUrl":"/icons/airbags.png"},{"id":"abs-ebd","name":"ABS & EBD","iconName":"Disc","iconUrl":"/icons/abs.png"}]'::jsonb,
+    '[]'::jsonb,
+    '[{"id":"inspected","title":"Inspected","subtitle":"200+ point check","iconName":"ShieldCheck","iconUrl":"/icons/quality-check-140.png","status":"Passed"},{"id":"service","title":"Service History","subtitle":"Available","iconName":"Wrench","iconUrl":"/icons/service-icon.svg","status":"Partial"},{"id":"accident","title":"No Major Accidents","subtitle":"Verified","iconName":"FileText","iconUrl":"/icons/verified-seller.png","status":"Clean"},{"id":"rc","title":"RC Verified","subtitle":"TN RTO","iconName":"FileCheck","iconUrl":"/icons/rc-icon.svg","status":"Active"}]'::jsonb,
+    'nova-coimbatore',
+    '{"name":"Harsha cars Tiruppur","address":"Tiruppur, Tamil Nadu","phone":"+91 94882 12044","whatsapp":"+919488212044","hours":"Mon - Sun: 9:30 AM - 8:30 PM"}'::jsonb,
+    'Available', false, true, 93000, 11, 48
+  ),
+  (
+    'test-renault-triber-2021',
+    'Renault', 'Triber', 2021, 'RXZ',
+    '2021 Renault Triber RXZ',
+    685000, '₹ 6,85,000', 'EMI from ₹ 12,110/mo', 12110,
+    true, 'Inspected & Verified', 'Inspected',
+    '33,400 km', 33400, 'Petrol', 'Manual', '1st Owner',
+    'Tiruppur, Tamil Nadu', 'MPV', 'Electric Blue',
+    'Comprehensive valid till Aug 2026', 'TN-39 (Tiruppur)',
+    '/mock_cars/renault_triber_blue.jpg',
+    '/mock_cars/renault_triber_blue.jpg',
+    '/mock_cars/renault_triber_blue.jpg',
+    '[
+      {"id":"ext-1","label":"Exterior Front","category":"exterior","image":"/mock_cars/renault_triber_blue.jpg","thumb":"/mock_cars/renault_triber_blue.jpg"},
+      {"id":"int-1","label":"Dashboard","category":"interior","image":"/mock_cars/honda_city_interior_dashboard.jpg","thumb":"/mock_cars/honda_city_interior_dashboard.jpg"},
+      {"id":"cab-1","label":"Cabin Seats","category":"cabin","image":"/mock_cars/honda_city_leather_seats.jpg","thumb":"/mock_cars/honda_city_leather_seats.jpg"}
+    ]'::jsonb,
+    3,
+    'Seven-seat Triber RXZ, first owner, with the modular second and third row still in factory condition.',
+    'Mostly city use. Cooled glovebox, rear AC vents, and a 8-inch touchscreen. Inspection found no structural work.',
+    '[{"id":"touchscreen","name":"Touchscreen","iconName":"Tv","iconUrl":"/icons/steering-audio.png"},{"id":"reverse-camera","name":"Reverse Camera","iconName":"Video","iconUrl":"/icons/safety-features.png"},{"id":"airbags","name":"4 Airbags","iconName":"Shield","iconUrl":"/icons/airbags.png"},{"id":"abs-ebd","name":"ABS & EBD","iconName":"Disc","iconUrl":"/icons/abs.png"}]'::jsonb,
+    '[]'::jsonb,
+    '[{"id":"inspected","title":"Inspected","subtitle":"200+ point check","iconName":"ShieldCheck","iconUrl":"/icons/quality-check-140.png","status":"Passed"},{"id":"service","title":"Service History","subtitle":"Available","iconName":"Wrench","iconUrl":"/icons/service-icon.svg","status":"Documented"},{"id":"accident","title":"No Major Accidents","subtitle":"Verified","iconName":"FileText","iconUrl":"/icons/verified-seller.png","status":"Clean"},{"id":"rc","title":"RC Verified","subtitle":"TN RTO","iconName":"FileCheck","iconUrl":"/icons/rc-icon.svg","status":"Active"}]'::jsonb,
+    'nova-tiruppur',
+    '{"name":"Harsha cars Tiruppur","address":"Tiruppur, Tamil Nadu","phone":"+91 94882 12044","whatsapp":"+919488212044","hours":"Mon - Sun: 9:30 AM - 8:30 PM"}'::jsonb,
+    'Available', false, true, 137000, 10.5, 48
+  ),
+  (
+    'test-skoda-rapid-2018',
+    'Skoda', 'Rapid', 2018, 'Ambition 1.6 MPI',
+    '2018 Skoda Rapid Ambition',
+    625000, '₹ 6,25,000', 'EMI from ₹ 11,050/mo', 11050,
+    true, 'Inspected & Verified', 'Inspected',
+    '67,900 km', 67900, 'Petrol', 'Manual', '2nd Owner',
+    'Coimbatore, Tamil Nadu', 'Sedan', 'Carbon Steel',
+    'Comprehensive valid till Nov 2025', 'TN-66 (Coimbatore)',
+    '/mock_cars/skoda_rapid_silver.jpg',
+    '/mock_cars/skoda_rapid_silver.jpg',
+    '/mock_cars/skoda_rapid_silver.jpg',
+    '[
+      {"id":"ext-1","label":"Exterior Front","category":"exterior","image":"/mock_cars/skoda_rapid_silver.jpg","thumb":"/mock_cars/skoda_rapid_silver.jpg"},
+      {"id":"int-1","label":"Dashboard","category":"interior","image":"/mock_cars/honda_city_interior_dashboard.jpg","thumb":"/mock_cars/honda_city_interior_dashboard.jpg"},
+      {"id":"cab-1","label":"Cabin","category":"cabin","image":"/mock_cars/honda_city_leather_seats.jpg","thumb":"/mock_cars/honda_city_leather_seats.jpg"}
+    ]'::jsonb,
+    3,
+    'Rapid Ambition 1.6 with a new timing belt and a fresh set of front brake pads.',
+    'Second owner. Cruise control, rear AC vents, and alloy wheels. One documented rear bumper respray, no chassis work.',
+    '[{"id":"cruise-control","name":"Cruise Control","iconName":"Gauge","iconUrl":"/icons/cruise-control.png"},{"id":"touchscreen","name":"Touchscreen","iconName":"Tv","iconUrl":"/icons/steering-audio.png"},{"id":"airbags","name":"Dual Airbags","iconName":"Shield","iconUrl":"/icons/airbags.png"},{"id":"abs-ebd","name":"ABS & EBD","iconName":"Disc","iconUrl":"/icons/abs.png"}]'::jsonb,
+    '[]'::jsonb,
+    '[{"id":"inspected","title":"Inspected","subtitle":"200+ point check","iconName":"ShieldCheck","iconUrl":"/icons/quality-check-140.png","status":"Passed"},{"id":"service","title":"Service History","subtitle":"Available","iconName":"Wrench","iconUrl":"/icons/service-icon.svg","status":"Documented"},{"id":"accident","title":"No Major Accidents","subtitle":"Verified","iconName":"FileText","iconUrl":"/icons/verified-seller.png","status":"Bumper respray only"},{"id":"rc","title":"RC Verified","subtitle":"TN RTO","iconName":"FileCheck","iconUrl":"/icons/rc-icon.svg","status":"Active"}]'::jsonb,
+    'nova-coimbatore',
+    '{"name":"Harsha cars Tiruppur","address":"Tiruppur, Tamil Nadu","phone":"+91 94882 12044","whatsapp":"+919488212044","hours":"Mon - Sun: 9:30 AM - 8:30 PM"}'::jsonb,
+    'Available', false, true, 125000, 11, 48
+  ),
+  (
+    'test-honda-amaze-2022',
+    'Honda', 'Amaze', 2022, 'VX CVT',
+    '2022 Honda Amaze VX CVT',
+    890000, '₹ 8,90,000', 'EMI from ₹ 15,740/mo', 15740,
+    true, 'Inspected & Verified', 'Inspected',
+    '24,600 km', 24600, 'Petrol', 'Automatic', '1st Owner',
+    'Tiruppur, Tamil Nadu', 'Sedan', 'Modern Steel Grey',
+    'Comprehensive valid till Jun 2026', 'TN-39 (Tiruppur)',
+    '/mock_cars/honda_amaze_grey.jpg',
+    '/mock_cars/honda_amaze_grey.jpg',
+    '/mock_cars/honda_amaze_grey.jpg',
+    '[
+      {"id":"ext-1","label":"Exterior Front","category":"exterior","image":"/mock_cars/honda_amaze_grey.jpg","thumb":"/mock_cars/honda_amaze_grey.jpg"},
+      {"id":"int-1","label":"Dashboard","category":"interior","image":"/mock_cars/honda_city_interior_dashboard.jpg","thumb":"/mock_cars/honda_city_interior_dashboard.jpg"},
+      {"id":"cab-1","label":"Seats","category":"cabin","image":"/mock_cars/honda_city_leather_seats.jpg","thumb":"/mock_cars/honda_city_leather_seats.jpg"},
+      {"id":"mec-1","label":"Alloy Wheel","category":"mechanical","image":"/mock_cars/honda_city_wheel.jpg","thumb":"/mock_cars/honda_city_wheel.jpg"}
+    ]'::jsonb,
+    4,
+    'Low-kilometre Amaze VX CVT, single owner, with Honda warranty service history.',
+    'CVT automatic, cruise control, LED projector lamps, and a sunroof. Both smart keys are with the car. Tyres are original with even wear.',
+    '[{"id":"sunroof","name":"Sunroof","iconName":"Sun","iconUrl":"/icons/sunroof.png"},{"id":"cruise-control","name":"Cruise Control","iconName":"Gauge","iconUrl":"/icons/cruise-control.png"},{"id":"touchscreen","name":"Touchscreen","iconName":"Tv","iconUrl":"/icons/steering-audio.png"},{"id":"reverse-camera","name":"Reverse Camera","iconName":"Video","iconUrl":"/icons/safety-features.png"},{"id":"airbags","name":"Dual Airbags","iconName":"Shield","iconUrl":"/icons/airbags.png"},{"id":"abs-ebd","name":"ABS & EBD","iconName":"Disc","iconUrl":"/icons/abs.png"}]'::jsonb,
+    '[]'::jsonb,
+    '[{"id":"inspected","title":"Inspected","subtitle":"200+ point check","iconName":"ShieldCheck","iconUrl":"/icons/quality-check-140.png","status":"Passed"},{"id":"service","title":"Service History","subtitle":"Available","iconName":"Wrench","iconUrl":"/icons/service-icon.svg","status":"Documented"},{"id":"accident","title":"No Major Accidents","subtitle":"Verified","iconName":"FileText","iconUrl":"/icons/verified-seller.png","status":"Clean"},{"id":"rc","title":"RC Verified","subtitle":"TN RTO","iconName":"FileCheck","iconUrl":"/icons/rc-icon.svg","status":"Active"}]'::jsonb,
+    'nova-tiruppur',
+    '{"name":"Harsha cars Tiruppur","address":"Tiruppur, Tamil Nadu","phone":"+91 94882 12044","whatsapp":"+919488212044","hours":"Mon - Sun: 9:30 AM - 8:30 PM"}'::jsonb,
+    'Available', false, true, 178000, 10.5, 48
+  )
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  price = EXCLUDED.price,
+  price_formatted = EXCLUDED.price_formatted,
+  listing_status = EXCLUDED.listing_status,
+  is_draft = EXCLUDED.is_draft,
+  gallery = EXCLUDED.gallery,
+  updated_at = timezone('utc'::text, now());

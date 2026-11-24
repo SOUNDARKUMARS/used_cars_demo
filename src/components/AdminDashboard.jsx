@@ -31,8 +31,12 @@ import {
   getSalesRange,
   recordInSalesRange,
   formatLocalISODate,
+  getVehicleThumbnail,
+  formatCreationDate,
+  formatCreationTime,
 } from '../data/carStorage'
 import HeroPageEditor from './HeroPageEditor'
+import AdminAgentAnalyticsView from './AdminAgentAnalyticsView'
 import {
   checkSupabaseHealth,
   fetchCarsFromSupabase,
@@ -961,17 +965,21 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
     showToast(`Inspection status set to ${updatedStatus ? 'Certified A+' : 'Standard'}`)
   }
 
-  const handleToggleHero = (car) => {
-    const next = !car.showInHero
-    updateCarInSupabase(car.id, { showInHero: next })
-      .then(() => {
-        updateCar(car.id, { showInHero: next })
-        setCars(getStoredCars())
-        showToast(next ? `${car.title} is now on the hero` : `${car.title} removed from the hero`)
-      })
-      .catch((err) => {
-        showToast(err.message || 'Could not save the hero flag. Run the hero page SQL first.', 'error')
-      })
+  const handleToggleHero = (car, explicitNext) => {
+    const next = explicitNext !== undefined ? explicitNext : !car.showInHero
+    const current = !next
+    // Immediate optimistic update (0ms instant UI feedback)
+    updateCar(car.id, { showInHero: next })
+    setCars(getStoredCars())
+    showToast(next ? `${car.title} is now on the hero` : `${car.title} removed from the hero`)
+
+    // Background sync to Supabase with revert on failure
+    updateCarInSupabase(car.id, { showInHero: next }).catch((err) => {
+      console.warn('Hero toggle Supabase failed:', err)
+      updateCar(car.id, { showInHero: current })
+      setCars(getStoredCars())
+      showToast(err.message || 'Could not save the hero flag. Reverted.', 'error')
+    })
   }
 
   // Reset to default factory inventory
@@ -1567,7 +1575,29 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                   </button>
                 </li>
 
-                {/* 6b. Hero Page */}
+                {/* 6b. AI Agent Cost & Usage Analytics (Temporarily commented out) */}
+                {/*
+                <li className="nav-item">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('agent-cost')
+                      setMobileSidebarOpen(false)
+                    }}
+                    className={`nav-link w-100 text-start border-0 d-flex align-items-center justify-content-between ${activeTab === 'agent-cost' ? 'active' : ''}`}
+                  >
+                    <div className="d-flex align-items-center">
+                      <i className="bi bi-robot me-2 text-danger"></i>
+                      <span>AI Agent & Costs</span>
+                    </div>
+                    <span className="badge rounded-pill bg-danger-subtle text-danger" style={{ fontSize: '0.65rem' }}>
+                      LIVE
+                    </span>
+                  </button>
+                </li>
+                */}
+
+                {/* 6c. Hero Page */}
                 <li className="nav-item">
                   <button
                     type="button"
@@ -2085,10 +2115,10 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                                   <td>
                                     <div className="d-flex align-items-center">
                                       <img
-                                        src={car.image || '/mock_cars/honda_city_front.jpg'}
+                                        src={getVehicleThumbnail(car)}
                                         alt={car.title}
                                         className="rounded me-2.5 border flex-shrink-0"
-                                        style={{ width: '56px', height: '40px', objectFit: 'cover' }}
+                                        style={{ width: '56px', height: '40px', objectFit: 'contain', background: '#f8fafc' }}
                                         onError={(e) => {
                                           e.target.src = '/mock_cars/honda_city_front.jpg'
                                         }}
@@ -2097,6 +2127,9 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                                         <div className="fw-bold small text-nowrap">{car.title}</div>
                                         <div className="text-muted text-nowrap" style={{ fontSize: '11px' }}>
                                           {car.variant} &bull; {car.year} &bull; {car.location}
+                                          {(car.createdAt || car.created_at) && (
+                                            <> &bull; <span className="text-secondary" title={`Added on ${formatCreationDate(car.createdAt || car.created_at)} ${formatCreationTime(car.createdAt || car.created_at)}`}>Added {formatCreationDate(car.createdAt || car.created_at)}</span></>
+                                          )}
                                         </div>
                                         {/* Highlighted Features preview */}
                                         <div className="d-flex flex-wrap gap-1 mt-1">
@@ -2125,13 +2158,13 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                                     </div>
                                   </td>
                                   <td>
-                                    <div className="small fw-semibold text-nowrap">{car.km || `${car.kmNumeric?.toLocaleString('en-IN')} km`}</div>
+                                    <div className="small fw-semibold text-nowrap">{(car.km && car.km !== '0 km') ? car.km : (car.kmNumeric ? `${Number(car.kmNumeric).toLocaleString('en-IN')} km` : '0 km')}</div>
                                     <div className="text-muted text-nowrap" style={{ fontSize: '11px' }}>
                                       {car.fuel} &bull; {car.transmission} &bull; {car.bodyType}
                                     </div>
                                   </td>
                                   <td>
-                                    <div className="fw-bold text-dark small text-nowrap">{car.priceFormatted || formatINR(car.price)}</div>
+                                    <div className="fw-bold text-dark small text-nowrap">{(car.priceFormatted && car.priceFormatted !== '₹ 0') ? car.priceFormatted : formatINR(car.price)}</div>
                                     <div className="text-muted text-nowrap" style={{ fontSize: '11px' }}>{car.emi}</div>
                                   </td>
                                   <td>
@@ -2478,13 +2511,13 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                               <div className="card-body p-3 d-flex flex-column">
                                 <div className="d-flex justify-content-between align-items-start mb-1">
                                   <div className="fw-bold small text-truncate pe-2">{car.title}</div>
-                                  <div className="fw-bold text-primary small text-nowrap">{car.priceFormatted || formatINR(car.price)}</div>
+                                  <div className="fw-bold text-primary small text-nowrap">{(car.priceFormatted && car.priceFormatted !== '₹ 0') ? car.priceFormatted : formatINR(car.price)}</div>
                                 </div>
                                 <div className="text-muted small mb-2" style={{ fontSize: '11px' }}>
                                   {car.variant} &bull; {car.year} &bull; {car.location}
                                 </div>
                                 <div className="d-flex flex-wrap gap-1 mb-3">
-                                  <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px' }}>{car.km || `${car.kmNumeric?.toLocaleString('en-IN')} km`}</span>
+                                  <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px' }}>{(car.km && car.km !== '0 km') ? car.km : (car.kmNumeric ? `${Number(car.kmNumeric).toLocaleString('en-IN')} km` : '0 km')}</span>
                                   <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px' }}>{car.fuel}</span>
                                   <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px' }}>{car.transmission}</span>
                                   <span className="badge bg-light text-dark border" style={{ fontSize: '10.5px' }}>{car.bodyType}</span>
@@ -3726,7 +3759,7 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
                             <tr key={car.id}>
                               <td className="fw-semibold">{car.title}</td>
                               <td>{car.bodyType}</td>
-                              <td>{car.priceFormatted || formatINR(car.price)}</td>
+                              <td>{(car.priceFormatted && car.priceFormatted !== '₹ 0') ? car.priceFormatted : formatINR(car.price)}</td>
                               <td>{bookingsCount}</td>
                               <td>
                                 <span className={`badge ${
@@ -3746,7 +3779,16 @@ export default function AdminDashboard({ onLogout, onReturnToStore }) {
             )}
 
             {/* ==========================================================
-                TAB 7: SETTINGS
+                TAB 6b: AI AGENT COST & USAGE ANALYTICS (Temporarily commented out)
+            ========================================================== */}
+            {/*
+            {activeTab === 'agent-cost' && (
+              <AdminAgentAnalyticsView />
+            )}
+            */}
+
+            {/* ==========================================================
+                TAB 7: HERO PAGE & SETTINGS
             ========================================================== */}
             {activeTab === 'hero' && (
               <HeroPageEditor cars={cars} onToggleHero={handleToggleHero} />

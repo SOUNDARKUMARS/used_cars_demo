@@ -168,8 +168,8 @@ export default function ProfileScreen({
                 >
                   <div className="flex items-center gap-3">
                     <img
-                      src={car.image || car.gallery[0]?.image}
-                      alt={car.title}
+                      src={car?.image || car?.gallery?.[0]?.image || '/mock_cars/honda_city_front.jpg'}
+                      alt={car?.title || 'Vehicle'}
                       className="w-16 h-12 rounded-xl object-cover border border-slate-200"
                     />
                     <div>

@@ -33,6 +33,7 @@ export default function Navbar({
   onOpenCall,
   onOpenTestDrive,
   onOpenCarAlert,
+  onOpenAgentChat,
 }) {
   const { user, requireAuth, logout } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -71,17 +72,17 @@ export default function Navbar({
   return (
     <>
       <header className={`sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 transition-all duration-200 ${currentScreen === 'detail' ? 'hidden md:block' : ''}`}>
-        <div className="max-w-[1280px] mx-auto px-3 sm:px-6 min-h-[5.5rem] sm:h-[6rem] flex items-center justify-between gap-2">
-          {/* Brand Logo & Certified Pill (Matches Reference Mockup) */}
-          <div className="flex min-w-0 flex-1 items-center sm:flex-none sm:mr-4 lg:mr-8">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 h-16 sm:h-[4.25rem] lg:h-[4.5rem] flex items-center justify-between gap-4">
+          {/* Brand Logo */}
+          <div className="flex shrink-0 items-center sm:mr-4 lg:mr-8 xl:mr-10">
             <button
               type="button"
               onClick={goHome}
-              className="group flex max-w-full items-center text-left focus:outline-none"
+              className="group flex items-center text-left focus:outline-none"
               aria-label="Harsha cars home"
             >
               <BrandLogo
-                imgClassName="h-16 sm:h-20 w-auto max-w-full object-contain object-left"
+                imgClassName="h-9 sm:h-10 lg:h-11 w-auto max-w-[190px] sm:max-w-[210px] lg:max-w-[230px] object-contain object-left"
                 className="group-hover:opacity-90 transition-opacity"
               />
             </button>
@@ -376,7 +377,7 @@ export default function Navbar({
             >
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                  <BrandLogo imgClassName="h-11 w-auto max-w-[260px] object-contain" />
+                  <BrandLogo imgClassName="h-8.5 sm:h-9 w-auto max-w-[190px] object-contain" />
                   <button
                     onClick={() => setMobileMenuOpen(false)}
                     className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center transition active:scale-90"
@@ -444,6 +445,24 @@ export default function Navbar({
                 </div>
 
                 <div className="py-4 space-y-1 text-sm font-semibold">
+                  {/* Ask AI Assistant Mobile Tab/Button (Temporarily commented out) */}
+                  {/*
+                  {onOpenAgentChat && (
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        onOpenAgentChat()
+                      }}
+                      className="w-full text-left px-3 py-2.5 rounded-xl bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/60 hover:bg-red-100/70 transition flex items-center justify-between text-red-700 font-bold mb-2 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Sparkles className="w-4 h-4 text-red-600 animate-pulse" />
+                        <span>Ask AI Assistant</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-red-600 text-white">Live SQL</span>
+                    </button>
+                  )}
+                  */}
                   <button
                     onClick={() => {
                       goHome()

@@ -1564,3 +1564,102 @@ export function getModelSalesAnalytics(cars = [], range = null) {
   return list.filter((item) => item.totalCars > 0).sort((a, b) => b.totalValue - a.totalValue)
 }
 
+/**
+ * Returns the best available exterior / studio thumbnail URL for a vehicle.
+ * Prioritizes Studio thumbnails, exterior cover photos, and avoids interior/dashboard images.
+ */
+export function getVehicleThumbnail(car) {
+  if (!car) return '/mock_cars/honda_city_front.jpg'
+
+  // 1. Check if gallery contains a Studio thumbnail or tagged cover
+  if (Array.isArray(car.gallery) && car.gallery.length > 0) {
+    const studio = car.gallery.find(
+      (p) =>
+        p &&
+        (p.tag?.toLowerCase().includes('studio') ||
+         p.name?.toLowerCase().includes('studio') ||
+         p.label?.toLowerCase().includes('studio')) &&
+        (p.image || p.thumb || p.dataUrl || p.url)
+    )
+    if (studio) return studio.image || studio.thumb || studio.dataUrl || studio.url
+
+    // 2. An explicit cover marked exterior
+    const exteriorCover = car.gallery.find(
+      (p) => p && p.isCover && p.category === 'exterior' && (p.image || p.thumb || p.dataUrl || p.url)
+    )
+    if (exteriorCover) return exteriorCover.image || exteriorCover.thumb || exteriorCover.dataUrl || exteriorCover.url
+
+    // 3. Any exterior photo in gallery
+    const exterior = car.gallery.find(
+      (p) => p && p.category === 'exterior' && (p.image || p.thumb || p.dataUrl || p.url)
+    )
+    if (exterior) return exterior.image || exterior.thumb || exterior.dataUrl || exterior.url
+  }
+
+  // Helper to test if a string looks like an interior photo URL
+  const isInteriorLike = (url) => typeof url === 'string' && /interior|dashboard|seats|cockpit|wheel|engine/i.test(url)
+
+  // 4. car.image if valid and not an obvious interior/dashboard/cockpit photo
+  if (car.image && typeof car.image === 'string' && car.image.trim() && !isInteriorLike(car.image)) {
+    return car.image
+  }
+
+  // 5. Studio cutout image
+  const cutout = car.cutoutImage || car.cutout_image
+  if (cutout && typeof cutout === 'string' && cutout.trim() && !isInteriorLike(cutout)) {
+    return cutout
+  }
+
+  // 6. Detail hero image
+  const detailHero = car.detailHeroImage || car.detail_hero_image
+  if (detailHero && typeof detailHero === 'string' && detailHero.trim() && !isInteriorLike(detailHero)) {
+    return detailHero
+  }
+
+  // 7. If car.image exists (even if interior-like, when no other exterior is found)
+  if (car.image && typeof car.image === 'string' && car.image.trim()) {
+    return car.image
+  }
+
+  // 8. First item from gallery
+  if (Array.isArray(car.gallery) && car.gallery.length > 0) {
+    const first = car.gallery[0]
+    if (first && (first.image || first.thumb || first.url || first.dataUrl)) {
+      return first.image || first.thumb || first.url || first.dataUrl
+    }
+  }
+
+  return '/mock_cars/honda_city_front.jpg'
+}
+
+export function formatCreationDate(dateStr) {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return '—'
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  } catch (_) {
+    return '—'
+  }
+}
+
+export function formatCreationTime(dateStr) {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+  } catch (_) {
+    return ''
+  }
+}
+
+

@@ -157,12 +157,14 @@ export default function CarDetailScreen({
   const normalizedGallery = useMemo(() => {
     const rawList = Array.isArray(car?.gallery) && car.gallery.length > 0
       ? car.gallery
-      : (car?.image ? [{ id: 'hero-cover', label: 'Exterior Front', category: 'exterior', image: car.image, thumb: car.image }] : [])
+      : (car?.image || car?.detailHeroImage
+          ? [{ id: 'hero-cover', label: 'Exterior Front', category: 'exterior', image: car.image || car.detailHeroImage, thumb: car.image || car.detailHeroImage }]
+          : [{ id: 'hero-cover', label: 'Exterior Front', category: 'exterior', image: '/mock_cars/honda_city_front.jpg', thumb: '/mock_cars/honda_city_front.jpg' }])
 
     return rawList.map((item, idx) => {
-      let category = item.category
+      let category = item?.category
       if (!category) {
-        const l = (item.label || '').toLowerCase()
+        const l = (item?.label || '').toLowerCase()
         if (l.includes('interior') || l.includes('cockpit') || l.includes('dashboard') || l.includes('steering') || l.includes('infotainment')) {
           category = 'interior'
         } else if (l.includes('seat') || l.includes('cabin') || l.includes('sunroof') || l.includes('legroom')) {
@@ -177,17 +179,17 @@ export default function CarDetailScreen({
 
       return {
         ...item,
-        id: item.id || `photo-${idx}-${Date.now()}`,
+        id: item?.id || `photo-${idx}-${Date.now()}`,
         category,
         categoryTitle: config.title,
         categoryShortTitle: config.shortTitle,
         categoryIcon: config.icon,
-        label: item.label || `${config.shortTitle} View ${idx + 1}`,
-        image: item.image || item.thumb || '',
-        thumb: item.thumb || item.image || '',
+        label: item?.label || `${config.shortTitle} View ${idx + 1}`,
+        image: item?.image || item?.thumb || '',
+        thumb: item?.thumb || item?.image || '',
       }
     })
-  }, [car?.gallery, car?.image])
+  }, [car?.gallery, car?.image, car?.detailHeroImage])
 
   // Category counts computed from vehicle's photos
   const categoryCounts = useMemo(() => {
@@ -575,8 +577,6 @@ export default function CarDetailScreen({
     ),
   }
 
-  const currentGalleryItem = car.gallery[activePhotoIndex] || car.gallery[0]
-
   return (
     <div className="w-full max-w-full overflow-x-hidden bg-[#f8fafc] text-slate-900 min-h-screen pb-36 md:pb-16 selection:bg-brand selection:text-white">
       {/* Mobile Top Navigation Bar (Shown on Mobile to match Image 2 exactly) */}
@@ -598,13 +598,13 @@ export default function CarDetailScreen({
         {/* Right Icons: Heart & Share */}
         <div className="flex w-[4.75rem] shrink-0 items-center justify-end gap-2">
           <button
-            onClick={() => onToggleWishlist(car.id)}
+            onClick={() => onToggleWishlist(car?.id)}
             className="p-1 text-slate-900 hover:text-red-500 transition"
             aria-label="Wishlist"
           >
             <Heart
               className={`w-5 h-5 ${
-                wishlist.includes(car.id)
+                wishlist.includes(car?.id)
                   ? 'fill-red-500 text-red-500'
                   : 'text-slate-900 stroke-[2]'
               }`}
@@ -636,22 +636,22 @@ export default function CarDetailScreen({
             <span>/</span>
             <span className="text-slate-400">Inventory</span>
             <span>/</span>
-            <span className="text-slate-400">{car.make}</span>
+            <span className="text-slate-400">{car?.make}</span>
             <span>/</span>
-            <span className="font-semibold text-slate-900">{car.title}</span>
+            <span className="font-semibold text-slate-900">{car?.title}</span>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => onToggleWishlist(car.id)}
+              onClick={() => onToggleWishlist(car?.id)}
               className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition shadow-xs"
             >
               <Heart
                 className={`w-4 h-4 ${
-                  wishlist.includes(car.id) ? 'fill-red-500 text-red-500' : 'text-slate-700'
+                  wishlist.includes(car?.id) ? 'fill-red-500 text-red-500' : 'text-slate-700'
                 }`}
               />
-              <span>{wishlist.includes(car.id) ? 'Saved' : 'Save to Wishlist'}</span>
+              <span>{wishlist.includes(car?.id) ? 'Saved' : 'Save to Wishlist'}</span>
             </button>
 
             <button
@@ -851,7 +851,7 @@ export default function CarDetailScreen({
                     {car.title}
                   </h1>
                   <p className="shrink-0 whitespace-nowrap font-mono text-lg font-bold tracking-tight text-slate-900">
-                    {car.priceFormatted}
+                    {car.priceFormatted && car.priceFormatted !== '₹ 0' ? car.priceFormatted : (car.price ? formatINR(car.price) : '₹ 0')}
                   </p>
                 </div>
                 <div className="mt-0.5 flex items-center justify-between gap-3">
@@ -874,11 +874,11 @@ export default function CarDetailScreen({
               </h3>
               <div className="grid grid-cols-5 divide-x divide-slate-100 text-center">
                 {[
-                  { icon: '/icons/reg-year.png', alt: 'Year', value: car.year, label: 'Year' },
-                  { icon: '/icons/odometer.png', alt: 'Odometer', value: car.km.replace(' km', ''), label: 'Driven' },
-                  { icon: '/icons/fuel.png', alt: 'Fuel', value: car.fuel, label: 'Fuel' },
-                  { icon: '/icons/transmission.png', alt: 'Transmission', value: car.transmission, label: 'Gearbox' },
-                  { icon: '/icons/ownership.png', alt: 'Ownership', value: car.ownership, label: 'Owner' },
+                  { icon: '/icons/reg-year.png', alt: 'Year', value: car?.year, label: 'Year' },
+                  { icon: '/icons/odometer.png', alt: 'Odometer', value: car?.km ? String(car.km).replace(' km', '') : '', label: 'Driven' },
+                  { icon: '/icons/fuel.png', alt: 'Fuel', value: car?.fuel, label: 'Fuel' },
+                  { icon: '/icons/transmission.png', alt: 'Transmission', value: car?.transmission, label: 'Gearbox' },
+                  { icon: '/icons/ownership.png', alt: 'Ownership', value: car?.ownership, label: 'Owner' },
                 ].map((spec) => (
                   <div key={spec.label} className="flex flex-col items-center gap-1.5 px-1 py-1 min-w-0">
                     <img src={spec.icon} alt={spec.alt} className="w-5 h-5 object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none' }} />
@@ -914,7 +914,9 @@ export default function CarDetailScreen({
                 About this car
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                {readMore ? car.aboutFull : car.aboutSummary}
+                {readMore
+                  ? (car?.aboutFull || car?.aboutSummary || 'Detailed 200-point inspection completed with verified systems.')
+                  : (car?.aboutSummary || car?.aboutFull || 'Certified pre-owned vehicle with comprehensive quality inspection passed.')}
               </p>
               <button
                 onClick={() => setReadMore(!readMore)}
@@ -1054,12 +1056,12 @@ export default function CarDetailScreen({
               {/* Title & Price */}
               <div>
                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {car.title}
+                  {car?.title}
                 </h1>
-                <p className="text-sm text-slate-500 font-medium mt-0.5">{car.variant}</p>
+                <p className="text-sm text-slate-500 font-medium mt-0.5">{car?.variant}</p>
                 <div className="mt-3 flex items-baseline gap-2">
                   <p className="text-3xl font-extrabold text-slate-900 font-mono">
-                    {car.priceFormatted}
+                    {car?.priceFormatted && car?.priceFormatted !== '₹ 0' ? car.priceFormatted : (car?.price ? formatINR(car.price) : '₹ 0')}
                   </p>
                   <span className="text-xs text-slate-500">Fixed Transparent Price</span>
                 </div>
@@ -1121,7 +1123,7 @@ export default function CarDetailScreen({
           {/* Price & EMI */}
           <div>
             <p className="text-base font-bold text-slate-900 leading-tight font-mono">
-              {car.priceFormatted}
+              {car.priceFormatted && car.priceFormatted !== '₹ 0' ? car.priceFormatted : (car.price ? formatINR(car.price) : '₹ 0')}
             </p>
             <p className="text-xs text-slate-500 font-medium">
               {resolveCarEmi(car).label}

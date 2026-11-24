@@ -630,7 +630,12 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
           ? curFormData.customMake.trim()
           : curFormData.make || 'Draft Make'
 
-      const coverPhoto = curPhotos.find((p) => p.isCover) || curPhotos[0]
+      const coverPhoto =
+        curPhotos.find((p) => p.isCover && p.category === 'exterior') ||
+        curPhotos.find((p) => p.isCover) ||
+        curPhotos.find((p) => p.tag?.toLowerCase().includes('studio')) ||
+        curPhotos.find((p) => p.category === 'exterior') ||
+        curPhotos[0]
       const mainImageUrl = coverPhoto ? coverPhoto.dataUrl : ''
 
       const formattedGallery = curPhotos.map((p, idx) => ({
@@ -655,6 +660,8 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
           curFormData.title.trim() ||
           `${curFormData.year || ''} ${effectiveBrand} ${curFormData.model.trim() || 'Draft'}`.trim(),
         price: Number(curFormData.price) || 0,
+        priceFormatted: formatINR(Number(curFormData.price) || 0),
+        km: `${(Number(curFormData.kmNumeric) || 0).toLocaleString('en-IN')} km`,
         kmNumeric: curFormData.kmNumeric !== '' ? Number(curFormData.kmNumeric) : 0,
         bodyType: curFormData.bodyType || '',
         fuel: curFormData.fuel || '',
@@ -859,7 +866,12 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
     setIsSubmitting(true)
 
     try {
-      const coverPhoto = photos.find((p) => p.isCover) || photos.find((p) => p.category === 'exterior') || photos[0]
+      const coverPhoto =
+        photos.find((p) => p.isCover && p.category === 'exterior') ||
+        photos.find((p) => p.tag?.toLowerCase().includes('studio')) ||
+        photos.find((p) => p.category === 'exterior') ||
+        photos.find((p) => p.isCover) ||
+        photos[0]
       const mainImageUrl = coverPhoto ? coverPhoto.dataUrl : ''
 
       const formattedGallery = photos.map((p, idx) => ({
@@ -878,6 +890,8 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
         variant: formData.variant.trim() || 'Standard',
         title: formData.title.trim() || `${formData.year} ${effectiveMake} ${formData.model.trim()}`,
         price: Number(formData.price),
+        priceFormatted: formatINR(Number(formData.price) || 0),
+        km: `${(Number(formData.kmNumeric) || 0).toLocaleString('en-IN')} km`,
         kmNumeric: Number(formData.kmNumeric),
         bodyType: formData.bodyType,
         fuel: formData.fuel,
@@ -960,9 +974,16 @@ export default function AddVehicleScreen({ onCancel, onSuccess, showToast, initi
         ? existingVehicle.id
         : (currentDraftId || `car-${Date.now()}`)
 
+      const resolvedPrice = Number(carPayload.price ?? formData.price ?? 0)
+      const resolvedKm = Number(carPayload.kmNumeric ?? formData.kmNumeric ?? 0)
+
       const fullPublishPayload = {
         ...(editingPublishedListing ? existingVehicle : {}),
         ...carPayload,
+        price: resolvedPrice,
+        priceFormatted: formatINR(resolvedPrice),
+        km: `${resolvedKm.toLocaleString('en-IN')} km`,
+        kmNumeric: resolvedKm,
         id: carId,
         listingStatus: targetStatus,
         isDraft: false,

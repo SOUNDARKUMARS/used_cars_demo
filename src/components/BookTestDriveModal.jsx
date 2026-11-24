@@ -102,16 +102,16 @@ export default function BookTestDriveModal({ car, isOpen, onClose }) {
               <>
                 <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
                   <img
-                    src={car.image || car.gallery[0]?.image}
-                    alt={car.title}
+                    src={car?.image || car?.gallery?.[0]?.image || '/mock_cars/honda_city_front.jpg'}
+                    alt={car?.title || 'Vehicle'}
                     className="w-16 h-12 object-cover rounded-xl border border-slate-100"
                   />
                   <div>
                     <span className="text-xs font-semibold tracking-wider uppercase text-slate-900 bg-slate-100 px-2 py-0.5 rounded-xl inline-flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" /> Inspected
                     </span>
-                    <h3 className="font-bold text-slate-900 text-sm mt-0.5">{car.title}</h3>
-                    <p className="text-xs text-slate-600">{car.variant} • {car.priceFormatted}</p>
+                    <h3 className="font-bold text-slate-900 text-sm mt-0.5">{car?.title}</h3>
+                    <p className="text-xs text-slate-600">{car?.variant ? `${car.variant} • ` : ''}{car?.priceFormatted}</p>
                   </div>
                 </div>
 

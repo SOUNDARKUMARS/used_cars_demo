@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { rebrandValue } from '../config/brand'
-import { updateStoredReminder } from '../data/carStorage.js'
+import { rebrandValue } from '../config/brand.js'
+import { updateStoredReminder, formatINR } from '../data/carStorage.js'
 
 const supabaseUrl =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
@@ -34,6 +34,17 @@ export function mapCarFromDb(row) {
   )
 
   const effectiveStatus = isDraft ? 'Draft' : (row.listing_status || 'Available')
+  const numericPrice = Number(row.price) || 0
+  const safePriceFormatted =
+    row.price_formatted && row.price_formatted !== '₹ 0'
+      ? row.price_formatted
+      : (numericPrice > 0 ? formatINR(numericPrice) : '₹ 0')
+
+  const numericKm = Number(row.km_numeric) || 0
+  const safeKm =
+    row.km && row.km !== '0 km'
+      ? row.km
+      : (numericKm > 0 ? `${numericKm.toLocaleString('en-IN')} km` : '0 km')
 
   return rebrandValue({
     id: row.id,
@@ -42,8 +53,8 @@ export function mapCarFromDb(row) {
     year: row.year,
     variant: row.variant,
     title: row.title,
-    price: Number(row.price),
-    priceFormatted: row.price_formatted,
+    price: numericPrice,
+    priceFormatted: safePriceFormatted,
     emi: row.emi,
     emiNumeric: Number(row.emi_numeric),
     emiAvailable: row.emi_available === undefined || row.emi_available === null ? undefined : row.emi_available === true,
@@ -54,8 +65,8 @@ export function mapCarFromDb(row) {
     inspected: row.inspected,
     inspectedBadge: row.inspected_badge,
     homeInspectedBadge: row.home_inspected_badge,
-    km: row.km,
-    kmNumeric: row.km_numeric,
+    km: safeKm,
+    kmNumeric: numericKm,
     fuel: row.fuel,
     transmission: row.transmission,
     ownership: row.ownership,
@@ -156,6 +167,18 @@ export function mapCarToDb(car) {
         }),
   }
 
+  const numPrice = Number(car.price) || 0
+  const safePriceFormatted =
+    car.priceFormatted && car.priceFormatted !== '₹ 0'
+      ? car.priceFormatted
+      : (numPrice > 0 ? formatINR(numPrice) : '₹ 0')
+
+  const numKm = Number(car.kmNumeric) || 0
+  const safeKm =
+    car.km && car.km !== '0 km'
+      ? car.km
+      : (numKm > 0 ? `${numKm.toLocaleString('en-IN')} km` : '0 km')
+
   return {
     id: car.id,
     make: car.make || 'Draft Make',
@@ -163,8 +186,8 @@ export function mapCarToDb(car) {
     year: Number(car.year) || 2023,
     variant: car.variant || '',
     title: car.title || `${car.year || 2023} ${car.make || 'Vehicle'} ${car.model || 'Draft'}`,
-    price: Number(car.price) || 0,
-    price_formatted: car.priceFormatted || '₹ 0',
+    price: numPrice,
+    price_formatted: safePriceFormatted,
     emi: car.emiAvailable === false ? 'EMI not available' : (car.emi || 'EMI from ₹ 0/mo'),
     emi_numeric: car.emiAvailable === false ? 0 : (Number(car.emiNumeric) || 0),
     emi_available: car.emiAvailable !== false,
@@ -181,8 +204,8 @@ export function mapCarToDb(car) {
     inspected: car.inspected !== undefined ? car.inspected : true,
     inspected_badge: car.inspectedBadge || 'Inspected & Verified',
     home_inspected_badge: car.homeInspectedBadge || 'Inspected',
-    km: car.km || '0 km',
-    km_numeric: Number(car.kmNumeric) || 0,
+    km: safeKm,
+    km_numeric: numKm,
     fuel: car.fuel || 'Petrol',
     transmission: car.transmission || 'Manual',
     ownership: car.ownership || '1st Owner',
@@ -466,17 +489,69 @@ export function mapHeroContentToDb(content) {
   }
 }
 
+export const HERO_CONTENT_STORAGE_KEY = 'nova_hero_content_cache'
+export const HERO_CONTENT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week
+
+export function getCachedHeroContent() {
+  try {
+    const raw = localStorage.getItem(HERO_CONTENT_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const { data, cachedAt } = parsed
+    if (!data || typeof data !== 'object' || !cachedAt) return null
+    const age = Date.now() - Number(cachedAt)
+    if (age >= 0 && age < HERO_CONTENT_CACHE_TTL_MS) {
+      return data
+    }
+    // Expired (> 1 week)
+    return null
+  } catch (err) {
+    console.error('Failed reading hero content cache from localStorage', err)
+    return null
+  }
+}
+
+export function getStaleHeroContent() {
+  try {
+    const raw = localStorage.getItem(HERO_CONTENT_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed?.data || null
+  } catch (_) {
+    return null
+  }
+}
+
+export function saveCachedHeroContent(content) {
+  try {
+    if (!content) return
+    const payload = {
+      data: content,
+      cachedAt: Date.now(),
+    }
+    localStorage.setItem(HERO_CONTENT_STORAGE_KEY, JSON.stringify(payload))
+    window.dispatchEvent(new CustomEvent('nova_hero_content_updated', { detail: content }))
+  } catch (err) {
+    console.error('Failed saving hero content cache to localStorage', err)
+  }
+}
+
 export async function fetchHeroContentFromSupabase() {
   const { data, error } = await supabase.from('hero_content').select('*').eq('id', 'site').maybeSingle()
   if (error) throw error
-  return mapHeroContentFromDb(data)
+  const mapped = mapHeroContentFromDb(data)
+  saveCachedHeroContent(mapped)
+  return mapped
 }
 
 export async function saveHeroContentToSupabase(content) {
   const payload = mapHeroContentToDb(content)
   const { data, error } = await supabase.from('hero_content').upsert([payload], { onConflict: 'id' }).select().single()
   if (error) throw error
-  return mapHeroContentFromDb(data)
+  const mapped = mapHeroContentFromDb(data)
+  saveCachedHeroContent(mapped)
+  return mapped
 }
 
 export async function fetchCarByIdFromSupabase(id) {
@@ -497,7 +572,10 @@ export async function updateCarInSupabase(id, updates) {
   const dbUpdates = {}
   if (updates.price !== undefined) {
     dbUpdates.price = Number(updates.price)
-    dbUpdates.price_formatted = updates.priceFormatted
+    dbUpdates.price_formatted =
+      updates.priceFormatted && updates.priceFormatted !== '₹ 0'
+        ? updates.priceFormatted
+        : formatINR(Number(updates.price) || 0)
     if (updates.emi) dbUpdates.emi = updates.emi
     if (updates.emiNumeric !== undefined) dbUpdates.emi_numeric = updates.emiNumeric
   }
@@ -516,7 +594,10 @@ export async function updateCarInSupabase(id, updates) {
   if (updates.emiNote !== undefined) dbUpdates.emi_note = updates.emiNote || null
   if (updates.kmNumeric !== undefined) {
     dbUpdates.km_numeric = Number(updates.kmNumeric)
-    dbUpdates.km = updates.km
+    dbUpdates.km =
+      updates.km && updates.km !== '0 km'
+        ? updates.km
+        : `${(Number(updates.kmNumeric) || 0).toLocaleString('en-IN')} km`
   }
   if (updates.listingStatus !== undefined) dbUpdates.listing_status = updates.listingStatus
   if (updates.inspected !== undefined) {

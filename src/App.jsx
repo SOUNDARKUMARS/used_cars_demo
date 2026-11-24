@@ -20,6 +20,7 @@ import FilterModal from './components/FilterModal'
 import GoogleAuthModal from './components/GoogleAuthModal'
 import PhoneNumberPrompt from './components/PhoneNumberPrompt'
 import SetCarAlertModal from './components/SetCarAlertModal'
+import HarshaAgentChat from './components/HarshaAgentChat'
 import { useAuth } from './context/AuthContext'
 import { isUserAdmin } from './context/authUtils'
 import { getStoredCars, saveStoredCars } from './data/carStorage'
@@ -232,6 +233,7 @@ export default function App() {
   const [inspectionModalOpen, setInspectionModalOpen] = useState(false)
   const [carAlertModalOpen, setCarAlertModalOpen] = useState(false)
   const [carAlertInitialValues, setCarAlertInitialValues] = useState({})
+  const [agentChatOpen, setAgentChatOpen] = useState(false)
 
   const handleOpenCarAlert = (initialValues = {}) => {
     setCarAlertInitialValues(initialValues)
@@ -361,7 +363,10 @@ export default function App() {
   }
 
   const handleBookTestDrive = (car = null) => {
-    if (car) setSelectedCar(car)
+    if (car) {
+      const matched = (cars || []).find((c) => String(c.id) === String(car.id))
+      setSelectedCar(matched ? { ...matched, ...car } : car)
+    }
     requireAuth(
       () => {
         setTestDriveModalOpen(true)
@@ -374,18 +379,49 @@ export default function App() {
   }
 
   const handleSelectCar = (car) => {
+    if (!car) return
     if (currentScreen !== 'detail') {
       scrollMemory.current[currentScreen] = window.scrollY || document.documentElement.scrollTop || 0
       detailReturnTo.current = currentScreen
     }
-    setSelectedCar(car)
+
+    // Match with loaded vehicle in memory to inherit full specs, gallery & description
+    const matched = (cars || []).find((c) => String(c.id) === String(car.id))
+    const carToSet = matched ? { ...matched, ...car } : car
+    setSelectedCar(carToSet)
     setCurrentScreen('detail')
     window.location.hash = 'detail'
+
+    try {
+      const url = new URL(window.location.href)
+      if (car.id) {
+        url.searchParams.set('car', car.id)
+        window.history.replaceState({}, '', url.toString())
+      }
+    } catch (_) {}
+
+    // If gallery or full details are missing, fetch complete record from Supabase
+    if (car.id && (!carToSet.gallery || carToSet.gallery.length === 0 || !carToSet.specs)) {
+      fetchCarByIdFromSupabase(car.id)
+        .then((fullDbCar) => {
+          if (fullDbCar) {
+            setSelectedCar((prev) => (prev && String(prev.id) === String(car.id) ? { ...fullDbCar, ...prev } : prev))
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not fetch full vehicle details from Supabase:', err)
+        })
+    }
   }
 
   const handleBackFromDetail = () => {
     const screen = detailReturnTo.current || 'home'
     pendingRestore.current = screen
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('car')
+      window.history.replaceState({}, '', url.toString())
+    } catch (_) {}
     handleNavigate(screen, { preserveScroll: true })
   }
 
@@ -483,6 +519,7 @@ export default function App() {
         onOpenCall={() => setCallModalOpen(true)}
         onOpenTestDrive={() => handleBookTestDrive(selectedCar || cars[0])}
         onOpenCarAlert={handleOpenCarAlert}
+        /* onOpenAgentChat={() => setAgentChatOpen(true)} */
       />
 
       {/* Main Responsive Page Content */}
@@ -648,6 +685,17 @@ export default function App() {
           showToast('Vehicle alert reminder activated! We will notify you via email when matching cars arrive.')
         }}
       />
+
+      {/* Harsha Cars AI Inventory Assistant Chat Widget & Floating Launcher (Temporarily commented out) */}
+      {/*
+      <HarshaAgentChat
+        isOpen={agentChatOpen}
+        onOpen={() => setAgentChatOpen(true)}
+        onClose={() => setAgentChatOpen(false)}
+        onSelectCar={handleSelectCar}
+        onBookTestDrive={handleBookTestDrive}
+      />
+      */}
     </div>
   )
 }

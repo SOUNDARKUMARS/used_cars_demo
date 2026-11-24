@@ -11,6 +11,8 @@ import {
   Car,
   ArrowUpDown,
   Bell,
+  Grid2X2,
+  Rows2,
 } from 'lucide-react'
 import { trackSearch, trackFilter, trackSort } from '../lib/analytics'
 import { emiBuyerLabel } from '../data/carStorage'
@@ -31,14 +33,47 @@ export default function CarsCatalogueScreen({
   const [query, setQuery] = useState('')
   const [selectedMakes, setSelectedMakes] = useState([])
   const [sortBy, setSortBy] = useState('featured')
+  const [mobileCols, setMobileCols] = useState(() => {
+    try {
+      const stored = localStorage.getItem('preferred_mobile_cols')
+      return stored === '1' ? 1 : 2
+    } catch (_) {
+      return 2
+    }
+  })
+
+  const handleMobileColsChange = (cols) => {
+    setMobileCols(cols)
+    try {
+      localStorage.setItem('preferred_mobile_cols', String(cols))
+      window.dispatchEvent(new Event('preferred_mobile_cols_changed'))
+    } catch (_) {}
+  }
+
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        const stored = localStorage.getItem('preferred_mobile_cols')
+        if (stored === '2' || stored === '1') {
+          setMobileCols(Number(stored))
+        }
+      } catch (_) {}
+    }
+    window.addEventListener('preferred_mobile_cols_changed', handleSync)
+    window.addEventListener('storage', handleSync)
+    return () => {
+      window.removeEventListener('preferred_mobile_cols_changed', handleSync)
+      window.removeEventListener('storage', handleSync)
+    }
+  }, [])
 
   const publishedCars = useMemo(() => {
     return (cars || []).filter(
       (c) =>
-        c.listingStatus === 'Available' ||
-        c.listingStatus === 'Sold' ||
+        c.listingStatus !== 'Sold' &&
+        (c.listingStatus === 'Available' ||
         c.listingStatus === 'Reserved' ||
-        (!c.isDraft && c.listingStatus !== 'Draft')
+        (!c.isDraft && c.listingStatus !== 'Draft'))
     )
   }, [cars])
 
@@ -58,11 +93,11 @@ export default function CarsCatalogueScreen({
   }
 
   const filtered = cars.filter((c) => {
-    // Exclude unpublished drafts from live customer catalogue
+    // Exclude sold cars and unpublished drafts from live customer catalogue
+    if (c.listingStatus === 'Sold') return false
     const isDraft = Boolean(
       (c.listingStatus === 'Draft' || c.isDraft) &&
       c.listingStatus !== 'Available' &&
-      c.listingStatus !== 'Sold' &&
       c.listingStatus !== 'Reserved'
     )
     if (isDraft) return false
@@ -186,6 +221,36 @@ export default function CarsCatalogueScreen({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Mobile View Toggle: 1-col or 2-col */}
+            <div className="flex items-center bg-white border border-slate-300 rounded-xl p-1 shadow-2xs md:hidden" role="group" aria-label="Mobile layout toggle">
+              <button
+                type="button"
+                onClick={() => handleMobileColsChange(1)}
+                className={`p-1.5 rounded-lg transition-all ${
+                  mobileCols === 1
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-slate-400 hover:text-slate-700'
+                }`}
+                title="1 Column View"
+                aria-label="1 Column View"
+              >
+                <Rows2 className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMobileColsChange(2)}
+                className={`p-1.5 rounded-lg transition-all ${
+                  mobileCols === 2
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-slate-400 hover:text-slate-700'
+                }`}
+                title="2 Column Grid View"
+                aria-label="2 Column Grid View"
+              >
+                <Grid2X2 className="w-4 h-4" />
+              </button>
+            </div>
+
             {/* Sort Selector with Analytics Tracking */}
             <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-2.5 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 shadow-2xs">
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -283,6 +348,45 @@ export default function CarsCatalogueScreen({
           </div>
         </div>
 
+        {/* Results summary & Mobile Layout Switcher Bar */}
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-xs sm:text-sm font-semibold text-slate-600">
+            Showing <span className="text-slate-900 font-bold">{sortedCars.length}</span> {sortedCars.length === 1 ? 'vehicle' : 'vehicles'}
+          </p>
+
+          <div className="flex items-center gap-1.5 md:hidden">
+            <span className="text-[11px] font-medium text-slate-500">View:</span>
+            <div className="flex items-center bg-white border border-slate-300 rounded-xl p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => handleMobileColsChange(1)}
+                className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                  mobileCols === 1
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="1 Column View"
+              >
+                <Rows2 className="w-3.5 h-3.5" />
+                <span>1 Col</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMobileColsChange(2)}
+                className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                  mobileCols === 2
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+                title="2 Column View"
+              >
+                <Grid2X2 className="w-3.5 h-3.5" />
+                <span>2 Col</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Cars Responsive Grid or Empty State */}
         {sortedCars.length === 0 ? (
           <div className="text-center py-16 px-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs max-w-md mx-auto">
@@ -326,23 +430,23 @@ export default function CarsCatalogueScreen({
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={`grid ${mobileCols === 2 ? 'grid-cols-2 gap-2.5 sm:gap-6' : 'grid-cols-1 gap-6'} md:grid-cols-2 lg:grid-cols-3`}>
             {sortedCars.map((car) => (
             <div
               key={car.id}
               className="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group"
             >
               <div
-                className="relative w-full h-52 sm:h-56 bg-slate-100 overflow-hidden cursor-pointer"
+                className={`relative w-full ${mobileCols === 2 ? 'h-32 sm:h-56' : 'h-52 sm:h-56'} bg-slate-100 overflow-hidden cursor-pointer`}
                 onClick={() => onSelectCar(car)}
               >
                 <img
-                  src={car.image || car.gallery[0]?.image}
-                  alt={car.title}
+                  src={car?.image || car?.gallery?.[0]?.image || '/mock_cars/honda_city_front.jpg'}
+                  alt={car?.title || 'Vehicle'}
                   className="w-full h-full object-contain object-center"
                 />
-                <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white text-xs font-medium px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-md">
-                  <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                <div className={`absolute ${mobileCols === 2 ? 'top-2 left-2 text-[10px] px-1.5 py-0.5 rounded-lg gap-1' : 'top-3 left-3 text-xs px-2.5 py-1 rounded-xl gap-1.5'} bg-black/70 backdrop-blur-md text-white font-medium flex items-center shadow-md`}>
+                  <ShieldCheck className={`${mobileCols === 2 ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-white`} />
                   <span>{car.homeInspectedBadge || 'Inspected'}</span>
                 </div>
                 <button
@@ -350,10 +454,10 @@ export default function CarsCatalogueScreen({
                     e.stopPropagation()
                     onToggleWishlist(car.id)
                   }}
-                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:text-red-500"
+                  className={`absolute ${mobileCols === 2 ? 'top-2 right-2 w-7 h-7' : 'top-3 right-3 w-8 h-8'} rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white hover:text-red-500 transition active:scale-90`}
                 >
                   <Heart
-                    className={`w-4 h-4 ${
+                    className={`${mobileCols === 2 ? 'w-3.5 h-3.5' : 'w-4 h-4'} ${
                       wishlist.includes(car.id)
                         ? 'fill-red-500 text-red-500'
                         : 'text-white'
@@ -361,33 +465,54 @@ export default function CarsCatalogueScreen({
                   />
                 </button>
 
-                <CarCardImageSpecs car={car} />
+                <CarCardImageSpecs car={car} compact={mobileCols === 2} />
               </div>
 
-              <div className="p-5 flex-1 flex flex-col justify-between">
+              <div className={`${mobileCols === 2 ? 'p-2.5 sm:p-5' : 'p-4 sm:p-5'} flex-1 flex flex-col justify-between`}>
                 <div>
-                  <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className={`${mobileCols === 2 ? 'mb-1 space-y-0.5' : 'mb-2 flex items-start justify-between gap-3'}`}>
                     <h3
                       onClick={() => onSelectCar(car)}
-                      className="min-w-0 flex-1 text-base font-bold leading-snug text-slate-900 cursor-pointer hover:text-slate-600 transition line-clamp-2 sm:text-lg"
+                      className={`font-bold leading-snug text-slate-900 cursor-pointer hover:text-slate-600 transition ${
+                        mobileCols === 2
+                          ? 'text-xs line-clamp-1'
+                          : 'min-w-0 flex-1 text-base line-clamp-2 sm:text-lg'
+                      }`}
                     >
                       {car.title}
                     </h3>
-                    <p className="shrink-0 text-right text-sm font-bold text-slate-900 font-mono whitespace-nowrap tabular-nums sm:text-base">
+                    <p className={`font-bold text-slate-900 font-mono whitespace-nowrap tabular-nums ${
+                      mobileCols === 2
+                        ? 'text-xs sm:text-base'
+                        : 'shrink-0 text-right text-sm sm:text-base'
+                    }`}>
                       {car.priceFormatted}
                     </p>
                   </div>
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
+                  <div className={`${mobileCols === 2 ? 'mb-2 text-[10px]' : 'mb-3 text-xs'} flex flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5 text-slate-500 font-medium`}>
                     {car.variant?.trim() ? (
-                      <p className="min-w-0 max-w-[58%] truncate text-slate-500 font-medium">{car.variant}</p>
+                      <p className="truncate max-w-[55%]">{car.variant}</p>
                     ) : (
-                      <span />
+                      <span className="truncate">{car.fuel}</span>
                     )}
-                    <p className="shrink-0 text-slate-500 font-medium">{emiBuyerLabel(car)}</p>
+                    <p className="shrink-0">{emiBuyerLabel(car)}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                {/* 2-col mobile primary button */}
+                {mobileCols === 2 ? (
+                  <div className="space-y-1 sm:hidden">
+                    <button
+                      type="button"
+                      onClick={() => onSelectCar(car)}
+                      className="w-full min-h-[34px] rounded-xl bg-brand hover:bg-brand-hover text-white px-2 py-1.5 text-center text-xs font-bold shadow-2xs transition active:scale-[0.98]"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className={`${mobileCols === 2 ? 'hidden sm:grid' : 'grid'} grid-cols-2 gap-2`}>
                   <button
                     type="button"
                     onClick={() => onSelectCar(car)}

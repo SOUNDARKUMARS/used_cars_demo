@@ -1,0 +1,23 @@
+{
+  "name": "harsha-cars-agent-server",
+  "version": "1.0.0",
+  "description": "Modular AI Agent Server for Harsha Cars using DeepSeek V4.1 Flash and read-only SQL execution",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node tests/agent.test.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.1",
+    "@supabase/supabase-js": "^2.119.2",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.12.6",
+    "openai": "^7.32.0",
+    "pg": "^8.23.1",
+    "pg-mem": "^3.0.14",
+    "pino": "^10.4.0",
+    "zod": "^3.24.2"
+  }
+}
