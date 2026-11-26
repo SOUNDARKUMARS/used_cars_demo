@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../../esan_foods/nodeagent/esan_agent_server"
+		}
+	],
+	"settings": {}
+}
